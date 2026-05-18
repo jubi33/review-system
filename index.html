@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>검토의견 시스템</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0A0A0A;--s1:#111111;--s2:#181818;--s3:#222222;
+  --b1:#252525;--b2:#333333;
+  --t1:#EBEBEB;--t2:#888;--t3:#4A4A4A;
+  --green:#3CFF8F;--orange:#FF9A3C;--red:#FF4747;--mint:#47FFBB;
+  --purple:#A78BFA;--cyan:#22D3EE;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;
+  background:var(--bg);color:var(--t1);font-size:16px;min-height:100vh;line-height:1.6}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
+#login-overlay{position:fixed;inset:0;background:#0A0A0A;z-index:9999;display:flex;align-items:center;justify-content:center}
+#login-card{background:#111;border:1px solid #333;border-radius:14px;padding:40px;width:380px;max-width:90vw;text-align:center}
+::placeholder{color:var(--t2);opacity:1}
+input,select,textarea{font-family:inherit;color:var(--t1);background:var(--s2);
+  border:1px solid var(--b1);border-radius:8px;padding:11px 14px;font-size:15px;outline:none;
+  box-sizing:border-box;width:100%;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:#FF6600;outline:none;box-shadow:0 0 0 1px #FF6600}
+select option{background:#1A1A1A}
+button{font-family:inherit;cursor:pointer;transition:all .15s}
+button:hover{opacity:.75}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:22px;margin-bottom:14px}
+.tag{font-size:11px;padding:2px 8px;border-radius:3px;background:var(--s2);
+  color:var(--t2);border:1px solid var(--b1);white-space:nowrap;display:inline-block}
+.btn-save{background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;
+  padding:12px 20px;font-size:15px;font-weight:700}
+.btn-ai{background:#111;color:#AAAAAA;border:1px solid #FF6600;
+  border-radius:7px;padding:10px 18px;font-size:13px;font-weight:700}
+.btn-check{background:#111;color:#AAAAAA;border:1px solid #FF6600;
+  border-radius:7px;padding:10px 18px;font-size:13px;font-weight:700}
+.btn-out{background:transparent;border-radius:8px;padding:11px 18px;font-size:15px;font-weight:600}
+.hidden{display:none}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.grid-search{display:flex;flex-direction:column;gap:6px}
+.grid-draft{display:grid;grid-template-columns:1fr 400px;gap:16px;align-items:start}
+/* header */
+#header{background:var(--s1);border-bottom:1px solid var(--b1);
+  position:sticky;top:0;z-index:100;padding:0 20px}
+#header-inner{max-width:1300px;margin:0 auto;display:flex;align-items:center;
+  justify-content:space-between;height:52px}
+.tab-btn{padding:5px 14px;border-radius:6px;font-size:13px;font-weight:500;
+  border:none;background:transparent;color:var(--t2)}
+.tab-btn.active{background:var(--s2);color:var(--t1);font-weight:700}
+/* modal */
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);
+  z-index:999;display:none;align-items:center;justify-content:center}
+#modal-overlay.show{display:flex}
+#modal-box{background:var(--s1);border:1px solid var(--b2);border-radius:12px;
+  padding:28px;width:440px;max-width:90vw}
+/* toast */
+#toast{position:fixed;top:14px;right:14px;z-index:9999;
+  padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;
+  display:none;color:#000}
+#content{max-width:1300px;margin:0 auto;padding:24px}
+/* missing */
+.missing-item{padding:10px 14px;display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.missing-item+.missing-item{border-top:1px solid var(--b1)}
+.id-badge{font-size:10px;padding:2px 6px;border-radius:3px;
+  background:rgba(153,102,204,.12);color:#9966CC;font-weight:700;letter-spacing:.03em}
+.dot{width:5px;height:5px;border-radius:50%;display:inline-block;margin-right:5px}
+/* search cards */
+.case-card{cursor:pointer;transition:border-color .15s}
+.case-card:hover{border-color:var(--b2)}
+.case-name{font-size:16px;font-weight:700;color:var(--t1);line-height:1.45;margin-bottom:8px}
+.case-meta{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.case-issues{font-size:11px;color:var(--orange);margin-bottom:8px}
+.case-opinion{max-height:90px;overflow:hidden;transition:max-height .35s ease;
+  font-size:14px;color:var(--t1);line-height:1.75;white-space:pre-wrap;
+  border-top:1px solid var(--b1);padding-top:10px;margin-top:4px}
+.case-opinion.open{max-height:600px;color:var(--t1)}
+/* right panel */
+#similar-panel{position:sticky;top:72px}
+.similar-opinion{font-size:12px;color:var(--t2);white-space:pre-wrap;line-height:1.65;
+  background:var(--s2);border:1px solid var(--b1);border-radius:6px;
+  padding:8px 10px;max-height:130px;overflow:auto;cursor:pointer;transition:border-color .15s}
+.similar-opinion:hover{border-color:var(--b2)}
+.mgrow:hover{background:var(--s2) !important}
+.label{font-size:10px;font-weight:700;color:var(--t3);margin-bottom:6px;
+  text-transform:uppercase;letter-spacing:.08em}
+</style>
+</head>
+<body>
+<div id="login-overlay">
+  <div id="login-card">
+    <div style="font-size:24px;font-weight:800;color:#F0F0F0;margin-bottom:8px">
+      <span style="color:#FF6600">●</span> 검토의견 시스템
+    </div>
+    <div style="font-size:13px;color:#666;margin-bottom:28px">Hanwha Energy</div>
+    <input type="password" id="login-input" placeholder="비밀번호"
+      style="width:100%;padding:13px 16px;border-radius:8px;border:1px solid #333;background:#1A1A1A;color:#F0F0F0;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;font-family:inherit;text-align:center"
+      onkeydown="if(event.key==='Enter')doLogin()">
+    <div id="login-err" style="color:#FF4747;font-size:13px;margin-bottom:10px;display:none">비밀번호가 틀렸습니다</div>
+    <button onclick="doLogin()"
+      style="width:100%;padding:13px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer">
+      로그인
+    </button>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div style="font-size:15px;font-weight:700;margin-bottom:20px">API 키 설정</div>
+    <div class="label">Anthropic API Key</div>
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." style="margin-bottom:8px">
+    <div style="font-size:11px;color:var(--t3);margin-bottom:20px">console.anthropic.com에서 발급 · 이 브라우저에만 저장됨</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-acc" onclick="saveSettings()">저장</button>
+      <button class="btn-out" style="border:1px solid var(--b2);color:var(--t3)" onclick="closeModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Header -->
+<div id="header">
+  <div id="header-inner">
+    <div style="display:flex;align-items:center;gap:20px">
+      <span style="font-size:18px;font-weight:700">
+        <span style="color:#FF6600">●</span> 검토의견
+      </span>
+      <div style="display:flex;gap:2px">
+        <button class="tab-btn active" id="tab-search" onclick="switchTab('search')">검색</button>
+        <button class="tab-btn" id="tab-draft" onclick="switchTab('draft')">작성</button>
+        <button class="tab-btn" id="tab-manage" onclick="switchTab('manage')">관리</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span id="case-count" style="font-size:14px;color:var(--t3)">0건</span>
+      <button class="btn-out" style="border:1px solid var(--b2);color:var(--t3);padding:7px 14px;font-size:14px" onclick="openModal()">설정</button>
+    </div>
+  </div>
+</div>
+
+<!-- Content -->
+<div id="content">
+  <!-- 검색 탭 -->
+  <div id="pane-search">
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
+      <select id="s-biz" style="width:140px" onchange="renderSearch()"><option>전체</option></select>
+      <select id="s-cnt" style="width:120px" onchange="renderSearch()"><option>전체</option></select>
+      <select id="s-year" style="width:90px" onchange="renderSearch()"><option value="">연도</option></select>
+      <select id="s-month" style="width:80px" onchange="renderSearch()">
+        <option value="">월</option>
+        <option value="01">1월</option><option value="02">2월</option><option value="03">3월</option>
+        <option value="04">4월</option><option value="05">5월</option><option value="06">6월</option>
+        <option value="07">7월</option><option value="08">8월</option><option value="09">9월</option>
+        <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+      </select>
+      <input id="s-key" placeholder="키워드 검색..." style="flex:1;min-width:140px" oninput="renderSearch()">
+      <div id="s-count" style="padding:0 12px;background:var(--s1);border:1px solid var(--b1);border-radius:6px;display:flex;align-items:center;font-size:12px;color:var(--t3);white-space:nowrap;height:38px">0건</div>
+    </div>
+    <div id="search-results" class="grid-search"></div>
+  </div>
+
+  <!-- 작성 탭 -->
+  <div id="pane-draft" class="hidden">
+    <div class="grid-draft">
+      <div>
+        <!-- 기본 정보 -->
+        <div class="card">
+          <div class="grid4">
+            <div><div class="label">사업명</div><input id="d-name" placeholder="사업명"></div>
+            <div><div class="label">사업유형</div><select id="d-biz" onchange="renderSimilar();clearMissing()"></select></div>
+            <div><div class="label">국가/법인</div><select id="d-cnt" onchange="renderSimilar();clearMissing()"></select></div>
+            <div><div class="label">결론</div><select id="d-result"></select></div>
+          </div>
+        </div>
+        <!-- AI 초안 -->
+        <div class="card">
+          <div style="margin-bottom:10px"><span style="font-size:13px;font-weight:600;color:var(--t1)">품의서 붙여넣기</span><span style="font-size:12px;color:var(--t2);margin-left:8px">→ AI 초안 생성 &nbsp;|&nbsp; 직접 작성 시 생략 가능 &nbsp;|&nbsp; <a href="https://hcom.cleverse.co/approval/wlT1M05" target="_blank" style="color:#FF6600;text-decoration:none;font-weight:600">Cleverse ↗</a></span></div>
+          <textarea id="d-raw" placeholder="품의서 내용..." style="height:180px;resize:vertical;margin-bottom:10px"></textarea>
+          <button id="gen-btn" class="btn-ai" style="width:100%;padding:11px" onclick="genDraft()">AI 초안 생성</button>
+        </div>
+        <!-- 검토의견 -->
+        <div class="card" id="opinion-card">
+          <div style="margin-bottom:10px">
+            <span style="font-size:13px;font-weight:600;color:var(--t1)">검토의견 작성</span>
+            <span style="font-size:12px;color:var(--t2);margin-left:8px">실무자 초안 또는 최종 검토의견 — AI 초안 생성 후 자동 입력</span>
+          </div>
+          <textarea id="d-opinion" id2="d-draft-raw" placeholder="검토의견을 작성하거나 AI 초안을 생성하세요..." style="height:260px;resize:vertical;line-height:1.75;margin-bottom:10px" oninput="clearMissing();clearStyle()"></textarea>
+          <div id="style-result" style="margin-bottom:6px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <button id="analyze-btn" onclick="analyzeStyle()"
+              style="padding:10px;background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:7px;font-size:13px;font-weight:700">
+              보완 필요 사항 확인
+            </button>
+            <button id="chk-btn" class="btn-check" style="padding:10px" onclick="checkMissing()">누락 항목 확인</button>
+          </div>
+          <div id="missing-result"></div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button style="flex:1;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="saveCase()">저장</button>
+            <button style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyOpinion()">복사</button>
+          </div>
+        </div>
+      </div>
+      <!-- 유사사례 패널 -->
+      <div id="similar-panel">
+        <div class="card" style="padding:0;overflow:hidden;margin-bottom:0">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--b1);display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-size:16px;font-weight:700;margin-bottom:5px">유사사례</div>
+              <div id="similar-tags" style="display:flex;gap:5px"></div>
+            </div>
+            <span id="similar-count" style="font-size:22px;color:var(--t3);font-weight:300">0</span>
+          </div>
+          <div id="similar-list" style="max-height:calc(100vh - 220px);overflow-y:auto;padding:12px"></div>
+          <div style="border-top:1px solid var(--b1);padding:10px 12px">
+            <input style="font-size:14px" id="similar-search" placeholder="키워드 검색 (Enter → 검색 탭)" style="font-size:11px;padding:7px 10px"
+              onkeydown="if(event.key==='Enter'&&this.value){document.getElementById('s-key').value=this.value;switchTab('search');flash('검색 탭으로 이동')}">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 관리 탭 -->
+  <div id="pane-manage" class="hidden">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input type="file" id="xlsx-input" accept=".xlsx,.xls" style="display:none" onchange="importXlsx(this)">
+      <button onclick="document.getElementById('xlsx-input').click()"
+        style="background:var(--s1);color:var(--t2);border:1px solid var(--b2);border-radius:7px;padding:8px 16px;font-size:13px;display:flex;align-items:center;gap:8px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        엑셀 가져오기
+      </button>
+
+      <div style="flex:1"></div>
+      <button onclick="resetAll()"
+        style="background:transparent;color:var(--t3);border:1px solid var(--b2);border-radius:7px;padding:8px 14px;font-size:12px">
+        초기화
+      </button>
+    </div>
+    <div id="manage-list"></div>
+  </div>
+</div>
+
+<script>
+
+var LOGIN_PW = "Hanwha1234";
+function doLogin() {
+  if (document.getElementById("login-input").value === LOGIN_PW) {
+    document.getElementById("login-overlay").style.display = "none";
+    renderSearch();
+    renderSimilar();
+  } else {
+    document.getElementById("login-err").style.display = "block";
+    document.getElementById("login-input").value = "";
+    document.getElementById("login-input").focus();
+  }
+}
+
+// ── 데이터 ────────────────────────────────────────────────────────
+var INIT_CASES = [];
+
+var CHECKLISTS = {
+  "개발비 요청": [
+    {section:"1. 사업 기본 요건",items:[
+      {id:"1-1",title:"사업 위치·규모 명시",detail:"주/국가, MW/MWh, PV·BESS·하이브리드 구분"},
+      {id:"1-2",title:"COD 일정 현실성",detail:"NTP→COD 기간 (PV 2년, PV+BESS 2.5년 기준)"},
+      {id:"1-3",title:"오프테이커 수요 확인",detail:"PPA 체결 완료 / RFP 예정 / 오프테이커 신용도"},
+      {id:"1-4",title:"기존 파트너십·실적",detail:"동일 오프테이커·지역 거래 실적 존재 여부"},
+    ]},
+    {section:"2. 예산 구성 및 집행",items:[
+      {id:"2-1",title:"항목별 세부 내역",detail:"부지·인허가·계통·설계·법률·예비비 항목별 금액"},
+      {id:"2-2",title:"현금 vs L/C 비율",detail:"L/C 비중 과다 여부 / 환급 조건 명시"},
+      {id:"2-3",title:"누적 예산 관리",detail:"기존 승인 대비 집행률 적정 여부"},
+      {id:"2-4",title:"Safe Harbor·ITC 일정",detail:"BOC 달성 기한 준수 가능 여부 (IRS 기준)"},
+    ]},
+    {section:"3. Go/No-Go 구조",items:[
+      {id:"3-1",title:"단계별 Gate 존재",detail:"최소 2단계 Gate / 조건이 객관적 기준인가"},
+      {id:"3-2",title:"Gate별 손실 노출액",detail:"각 Gate 철수 시 Sunk Cost 금액 명시"},
+      {id:"3-3",title:"Worst Case 시나리오",detail:"전체 철수 시 최대 손실 산출 / 대안 존재"},
+      {id:"3-4",title:"조건부 vs 필수 예산",detail:"Gate 결과 전 선집행 항목 사유 타당성"},
+    ]},
+    {section:"4. 계통연계 리스크",items:[
+      {id:"4-1",title:"계통 신청 단계",detail:"POI / Queue / GIR / LGIA 단계 확인"},
+      {id:"4-2",title:"계통 비용 확정",detail:"Network Upgrade 비용 Study 기반 여부 / $50M 기준"},
+    ]},
+    {section:"5. 사업성 지표",items:[
+      {id:"5-1",title:"IRR·마진 수준",detail:"Levered IRR 및 Hurdle Rate 대비 (통상 10%+)"},
+      {id:"5-2",title:"PPA 가격 적정성",detail:"시장 벤치마크 대비 PPA 가격"},
+      {id:"5-3",title:"ITC·세제 혜택",detail:"ITC 30% 반영 / Energy Community 해당 여부"},
+    ]},
+    {section:"6. 후속 관리",items:[
+      {id:"6-1",title:"위임전결 확인",detail:"본사·법인 전결 권한 / 결재 라인 적정성"},
+      {id:"6-2",title:"유관 부서 협의",detail:"국제금융팀·법무팀·해당 법인 협의 완료"},
+      {id:"6-3",title:"모회사 보증(PG)",detail:"PG 단방향/양방향 여부 / 국제금융팀 협결"},
+    ]},
+  ],
+  "자문사 선임": [
+    {section:"1. 선임 사유·필요성",items:[
+      {id:"1-1",title:"선임 필요성·긴급성",detail:"자문 사유 명확성 / 내부 처리 불가 이유"},
+      {id:"1-2",title:"기존 자문사 연속성",detail:"교체 이유 명시 / 인수인계 리스크"},
+      {id:"1-3",title:"경쟁 입찰 여부",detail:"복수 후보 검토 여부 / 수의계약 시 사유"},
+    ]},
+    {section:"2. 계약 조건",items:[
+      {id:"2-1",title:"SOW 명확성",detail:"업무 범위 구체 정의 / 범위 초과 추가 비용"},
+      {id:"2-2",title:"보수 구조",detail:"고정 Fee / 시간당 / 성과 보수 구조"},
+      {id:"2-3",title:"예산 한도 관리",detail:"승인 예산 내 집행 / 장기화 시 증액 기준"},
+    ]},
+    {section:"3. 리스크",items:[
+      {id:"3-1",title:"법무팀 협결",detail:"내부 법무팀 검토·승인 완료"},
+      {id:"3-2",title:"기밀 유지",detail:"NDA 포함 여부 / 민감 정보 관리 방안"},
+    ]},
+  ],
+  "계약 체결": [
+    {section:"1. 계약 구조·핵심 조건",items:[
+      {id:"1-1",title:"계약 구조 적정성",detail:"권리·의무 배분 / 양방향 vs 단방향"},
+      {id:"1-2",title:"기간·단가·물가연동",detail:"계약 기간 / 단가 시장 적정성 / 물가연동"},
+      {id:"1-3",title:"CP 충족",detail:"CP 항목 전체 충족 현황 / 잔여 CP 관리"},
+    ]},
+    {section:"2. 리스크·승인",items:[
+      {id:"2-1",title:"모회사 보증(PG)",detail:"PG 단방향/양방향 / 국제금융팀 협결"},
+      {id:"2-2",title:"해지 조건·패널티",detail:"해지 트리거 조건 / 패널티 규모"},
+      {id:"2-3",title:"위임전결 확인",detail:"계약 규모별 전결 권한 / IC 심의 여부"},
+    ]},
+  ],
+  "매각": [
+    {section:"1. 매각 가격·구조",items:[
+      {id:"1-1",title:"매각가·마진 검토",detail:"매각가 산출 근거 / 사업계획 대비 수준"},
+      {id:"1-2",title:"매각 구조",detail:"SPA vs APA vs 흡수분할 / 세무 최적화"},
+      {id:"1-3",title:"대금 지급 구조",detail:"Closing / Milestone 분할 / Earn-out 조건"},
+    ]},
+    {section:"2. CP 충족·리스크",items:[
+      {id:"2-1",title:"잔여 CP 관리",detail:"FIRB·지상권·Change of Control 등 잔여 CP"},
+      {id:"2-2",title:"R&W 범위",detail:"R&W 범위·기간·한도 / Indemnification 상한"},
+      {id:"2-3",title:"세무·회계 영향",detail:"매각차익 과세 / 손실·이익 인식 시점"},
+    ]},
+  ],
+  "손상처리": [
+    {section:"■ 손상처리",items:[
+      {id:"S-1",title:"손상 사유 명확성",detail:"인허가 불가·시장 구조 이슈 등 객관적 사유"},
+      {id:"S-2",title:"조기 중단 vs 계속",detail:"계속 추진 손실 vs 조기 중단 비용 비교"},
+      {id:"S-3",title:"손상 금액 산출",detail:"기집행 현금 + L/C 손실 + 정산 비용"},
+      {id:"S-4",title:"잠재 리스크 제거",detail:"해지로 제거되는 잠재 최대 손실 규모 명시"},
+    ]},
+  ],
+  "기타": [
+    {section:"■ 기타",items:[
+      {id:"G-1",title:"정책 변경 위임전결",detail:"Risk Policy 변경 시 위원회 승인 필요 여부"},
+      {id:"G-2",title:"선집행 환급 구조",detail:"LNTP 선집행 시 매수자 환급 조건·시점"},
+      {id:"G-3",title:"긴급성 사유 타당성",detail:"COD 준수·공기 리스크와 연관성 명시"},
+    ]},
+  ],
+  "예산승인": [
+    {section:"■ 예산승인",items:[
+      {id:"B-1",title:"예산 편성 근거",detail:"계약 기반 vs 추정 기반 항목 구분"},
+      {id:"B-2",title:"사업계획 대비 변동",detail:"BP 대비 변동 내역 및 사유 명시"},
+      {id:"B-3",title:"YTD 실적 vs 계획",detail:"현재 집행률이 연간 목표 대비 정상 범위인가"},
+    ]},
+  ],
+};
+
+var BIZ_TYPES = Object.keys(CHECKLISTS);
+var COUNTRIES = ["미국개발","유럽개발","유럽DE","호주","일본","미국리테일","기타"];
+var RESULTS   = ["승인","조건부 승인","추가 검토","반려"];
+
+// ── 상태 ─────────────────────────────────────────────────────────
+var cases = [];
+var settings = {};
+var LS = {
+  getSettings:function(){try{return JSON.parse(localStorage.getItem("rv_settings")||"{}");}catch(e){return{};}},
+  saveSettings:function(d){localStorage.setItem("rv_settings",JSON.stringify(d));}
+};
+var SB_URL="https://asjjujsylfgyxepjkdoc.supabase.co",SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzamp1anN5bGZneXhlcGprZG9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDYxMjEsImV4cCI6MjA5NDI4MjEyMX0.bX1XKognhvO7Sec0g0IdSl84miRXXANkpIM3RAdPh2Y";
+// SB_H removed
+var SB_H={"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json","Prefer":"return=representation"};
+function toRow(c){return{date:c.date||"",name:c.name||"",biz_type:c.bizType||"",country:c.country||"",issues:c.issues||"",result:c.result||"승인",draft_raw:c.draftRaw||"",opinion:c.opinion||""};}
+function fromRow(r){return{id:r.id,date:r.date||"",name:r.name||"",bizType:r.biz_type||"",country:r.country||"",issues:r.issues||"",result:r.result||"승인",draftRaw:r.draft_raw||"",opinion:r.opinion||""};}
+
+// 설정은 localStorage에 저장
+var LS = {
+  getSettings: function() { try { return JSON.parse(localStorage.getItem("rv_settings")||"{}"); } catch(e) { return {}; } },
+  saveSettings: function(d) { localStorage.setItem("rv_settings", JSON.stringify(d)); }
+};
+
+// ── Supabase 설정 ─────────────────────────────────────────────────
+var SB_URL = "https://asjjujsylfgyxepjkdoc.supabase.co";
+var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzamp1anN5bGZneXhlcGprZG9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDYxMjEsImV4cCI6MjA5NDI4MjEyMX0.bX1XKognhvO7Sec0g0IdSl84miRXXANkpIM3RAdPh2Y";
+var SB_HEADERS = {
+  "apikey": SB_KEY,
+  "Authorization": "Bearer " + SB_KEY,
+  "Content-Type": "application/json",
+  "Prefer": "return=representation"
+};
+var SB_HEADERS_BULK = {
+  "apikey": SB_KEY,
+  "Authorization": "Bearer " + SB_KEY,
+  "Content-Type": "application/json"
+};
+function toRow(c) {
+  return {date:c.date||"",name:c.name||"",biz_type:c.bizType||"",country:c.country||"",
+    issues:c.issues||"",result:c.result||"승인",draft_raw:c.draftRaw||"",opinion:c.opinion||""};
+}
+function fromRow(r) {
+  return {id:r.id,date:r.date||"",name:r.name||"",bizType:r.biz_type||"",
+    country:r.country||"",issues:r.issues||"",result:r.result||"승인",
+    draftRaw:r.draft_raw||"",opinion:r.opinion||""};
+}
+var currentTab = "search";
+var expandedId = null;
+var editingId = null;
+var missingItems = [];
+
+async function loadData() {
+  settings = LS.getSettings();
+  try {
+    var res = await fetch(SB_URL+"/rest/v1/cases?select=*&order=id.desc&limit=500",{
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+    });
+    var rows = await res.json();
+    cases = Array.isArray(rows) ? rows.map(fromRow) : [];
+  } catch(e) {
+    cases = [];
+    flash("DB 연결 실패: "+e.message,"err");
+  }
+  updateCount();
+  initSelects();
+}
+function saveCases(d) { cases = d; updateCount(); } // legacy - used for local ops
+
+// ── 토스트 ────────────────────────────────────────────────────────
+function flash(msg, type) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.background = type === "warn" ? "var(--orange)" : type === "err" ? "var(--red)" : "var(--green)";
+  t.style.display = "block";
+  setTimeout(function() { t.style.display = "none"; }, 2800);
+}
+
+// ── 모달 ─────────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById("api-key-input").value = settings.apiKey || "";
+  document.getElementById("modal-overlay").classList.add("show");
+}
+function closeModal() { document.getElementById("modal-overlay").classList.remove("show"); }
+function saveSettings() {
+  settings.apiKey = document.getElementById("api-key-input").value;
+  localStorage.setItem("rv_settings", JSON.stringify(settings));
+  closeModal(); flash("저장됨");
+}
+
+// ── 탭 전환 ──────────────────────────────────────────────────────
+function switchTab(tab) {
+  ["search","draft","manage"].forEach(function(t) {
+    document.getElementById("pane-" + t).classList.toggle("hidden", t !== tab);
+    var btn = document.getElementById("tab-" + t);
+    btn.classList.toggle("active", t === tab);
+  });
+  currentTab = tab;
+  if (tab === "search") renderSearch();
+  if (tab === "draft") renderSimilar();
+  if (tab === "manage") renderManage();
+}
+
+function updateCount() {
+  document.getElementById("case-count").textContent = cases.length + "건";
+}
+
+// ── 셀렉트 초기화 ─────────────────────────────────────────────────
+function initSelects() {
+  ["s-biz","d-biz"].forEach(function(id) {
+    var sel = document.getElementById(id);
+    if (id === "s-biz") sel.innerHTML = "<option>전체</option>";
+    else sel.innerHTML = "";
+    BIZ_TYPES.forEach(function(t) {
+      var opt = document.createElement("option");
+      opt.textContent = t;
+      sel.appendChild(opt);
+    });
+  });
+  ["s-cnt","d-cnt"].forEach(function(id) {
+    var sel = document.getElementById(id);
+    if (id === "s-cnt") sel.innerHTML = "<option>전체</option>";
+    else sel.innerHTML = "";
+    COUNTRIES.forEach(function(c) {
+      var opt = document.createElement("option");
+      opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  });
+  var rsel = document.getElementById("d-result");
+  rsel.innerHTML = "";
+  RESULTS.forEach(function(r) {
+    var opt = document.createElement("option");
+    opt.textContent = r;
+    rsel.appendChild(opt);
+  });
+  var ySel = document.getElementById("s-year");
+  if (ySel) {
+    var yrs = {};
+    cases.forEach(function(c){ var y=(c.date||"").split(".")[0]; if(y&&y.length===4) yrs[y]=true; });
+    Object.keys(yrs).sort().reverse().forEach(function(y){
+      var o=document.createElement("option"); o.value=y; o.textContent=y+"년"; ySel.appendChild(o);
+    });
+  }
+}
+function renderSearch() {
+  var biz = document.getElementById("s-biz").value;
+  var cnt = document.getElementById("s-cnt").value;
+  var key = document.getElementById("s-key").value;
+  var yr  = (document.getElementById("s-year")||{value:""}).value;
+  var mo  = (document.getElementById("s-month")||{value:""}).value;
+  var filtered = cases.filter(function(c) {
+    var b  = biz === "전체" || c.bizType === biz;
+    var ct = cnt === "전체" || c.country === cnt;
+    var k  = !key || [c.name,c.opinion,c.draftRaw,c.issues].join(" ").includes(key);
+    var d  = c.date || "";
+    var y  = !yr || d.startsWith(yr);
+    var m  = !mo || d.split(".")[1] === mo;
+    return b && ct && k && y && m;
+  });
+  document.getElementById("s-count").textContent = filtered.length + "/" + cases.length + "건";
+  var container = document.getElementById("search-results");
+  if (filtered.length === 0) {
+    container.innerHTML = "<div class='card' style='text-align:center;padding:48px;color:var(--t3)'>" + (cases.length === 0 ? "저장된 사례가 없습니다" : "검색 결과 없음") + "</div>";
+    return;
+  }
+  container.innerHTML = filtered.map(function(c) {
+    var dot = resultDot(c.result);
+    return "<div class='card case-card' onclick='toggleCase(" + c.id + ")'>" +
+      "<div style='display:flex;justify-content:space-between;align-items:flex-start'>" +
+        "<div style='flex:1;padding-right:10px'>" +
+          "<div class='case-name' style='margin-bottom:6px'>" + esc(c.name) + "</div>" +
+          (c.date ? "<div style='font-size:14px;font-weight:600;color:var(--acc);margin-bottom:8px'>" + esc(c.date) + "</div>" : "") +
+        "</div>" +
+        "<span id='arrow-" + c.id + "' style='color:var(--t3);font-size:16px;flex-shrink:0;margin-left:8px;transition:transform .25s'>⌄</span>" +
+      "</div>" +
+      "<div class='case-meta'>" +
+        "<span class='tag'>" + esc(c.bizType) + "</span>" +
+        "<span class='tag'>" + esc(c.country) + "</span>" +
+        dot +
+      "</div>" +
+      (c.issues ? "<div class='case-issues'>🏷 " + esc(c.issues) + "</div>" : "") +
+      "<div id='ref-btn-" + c.id + "' class='hidden' style='margin-top:12px'>" +
+        "<div style='display:flex;gap:0;margin-bottom:10px;border:1px solid var(--b2);border-radius:7px;overflow:hidden'>" +
+        (c.draftRaw ?
+           "<button id='stab-d-" + c.id + "' onclick='event.stopPropagation();sTab(this)' data-id='" + c.id + "' data-tab='draft'" +
+           " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;border-right:1px solid var(--b2);cursor:pointer;background:#FF6600;color:#fff'>실무자 초안</button>" : "") +
+        "<button id='stab-o-" + c.id + "' onclick='event.stopPropagation();sTab(this)' data-id='" + c.id + "' data-tab='opinion'" +
+          " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;" +
+          (c.draftRaw ? "background:#1A1A1A;color:#555" : "background:#FF6600;color:#fff") + "'>검토의견</button>" +
+        "</div>" +
+        "<div id='sref-content-" + c.id + "' onclick='expandContent(this)' style='font-size:13px;color:#eee;white-space:pre-wrap;line-height:1.75;cursor:pointer;" +
+          "background:var(--s3);border:1px solid var(--b2);border-radius:7px;padding:12px 14px;max-height:200px;overflow:hidden' title='클릭하면 전체 보기'>" +
+          (c.draftRaw ? esc(c.draftRaw) : esc(c.opinion||"")) +
+        "</div>" +
+        "<button id='sref-get-" + c.id + "' onclick='event.stopPropagation();sGet(this)' data-id='" + c.id + "' data-tab='" + (c.draftRaw ? "draft" : "opinion") + "'" +
+          " style='margin-top:8px;width:100%;padding:7px;background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer'>작성란에 가져오기</button>" +
+      "</div>" +
+    "</div>";
+  }).join("");
+}
+
+function expandContent(el) {
+  event.stopPropagation();
+  if (el.style.maxHeight === "none" || el.style.maxHeight === "") {
+    el.style.maxHeight = "200px";
+    el.style.overflow = "hidden";
+  } else {
+    el.style.maxHeight = "none";
+    el.style.overflow = "visible";
+  }
+}
+
+function sTab(btn) {
+  var id = btn.getAttribute("data-id");
+  var tab = btn.getAttribute("data-tab");
+  var c = cases.find(function(x){return String(x.id)===String(id);});
+  if(!c) return;
+  var el = document.getElementById("sref-content-"+id);
+  if(el) el.textContent = tab==="draft"?(c.draftRaw||""):(c.opinion||"");
+  var getBtn = document.getElementById("sref-get-"+id);
+  if(getBtn) getBtn.setAttribute("data-tab", tab);
+  var dBtn = document.getElementById("stab-d-"+id);
+  var oBtn = document.getElementById("stab-o-"+id);
+  if(dBtn){
+    dBtn.style.background = tab==="draft" ? "#FF6600" : "#1A1A1A";
+    dBtn.style.color = tab==="draft" ? "#fff" : "#666";
+  }
+  if(oBtn){
+    oBtn.style.background = tab==="opinion" ? "#FF6600" : "#1A1A1A";
+    oBtn.style.color = tab==="opinion" ? "#fff" : "#666";
+  }
+}
+function sGet(btn) {
+  var id = btn.getAttribute("data-id");
+  var tab = btn.getAttribute("data-tab");
+  var c = cases.find(function(x){return String(x.id)===String(id);});
+  if(!c) return;
+  document.getElementById("d-opinion").value = tab==="draft"?(c.draftRaw||""):(c.opinion||"");
+  switchTab("draft");
+  flash(tab==="draft"?"실무자 초안을 가져왔습니다":"검토의견을 가져왔습니다");
+}
+function switchPreview(btn) {
+  var id   = btn.getAttribute("data-id");
+  var type = btn.getAttribute("data-type");
+  var c = cases.find(function(x){ return String(x.id)===String(id); });
+  if (!c) return;
+  var el = document.getElementById("op-" + id);
+  if (el) el.textContent = type==="draft" ? (c.draftRaw||"") : (c.opinion||"");
+  document.querySelectorAll(".ptab[data-id='" + id + "']").forEach(function(t) {
+    var on = t.getAttribute("data-type") === type;
+    t.style.background  = on ? "var(--acc)" : "var(--s3)";
+    t.style.color       = on ? "#000"       : "var(--t2)";
+    t.style.borderColor = on ? "var(--acc)" : "var(--b2)";
+  });
+}
+
+function toggleCase(id) {
+  expandedId = expandedId === id ? null : id;
+  var el = document.getElementById("op-" + id);
+  var btn = document.getElementById("ref-btn-" + id);
+  var arrow = document.getElementById("arrow-" + id);
+  if (el) el.classList.toggle("open", expandedId === id);
+  if (btn) btn.classList.toggle("hidden", expandedId !== id);
+  if (arrow) arrow.style.transform = expandedId === id ? "rotate(180deg)" : "none";
+}
+
+function useAsRef(id) {
+  var c = cases.find(function(x) { return x.id === id; });
+  if (!c) return;
+  document.getElementById("d-raw").value = c.opinion || "";
+  switchTab("draft");
+  flash("작성 탭으로 이동");
+}
+
+// ── 유사사례 패널 ─────────────────────────────────────────────────
+function renderSimilar() {
+  var biz = document.getElementById("d-biz").value;
+  var cnt = document.getElementById("d-cnt").value;
+  var similar = cases.filter(function(c) { return c.bizType === biz || c.country === cnt; }).slice(0, 6);
+  document.getElementById("similar-count").textContent = similar.length;
+  document.getElementById("similar-tags").innerHTML =
+    "<span class='tag'>" + esc(biz) + "</span><span class='tag' style='margin-left:4px'>" + esc(cnt) + "</span>";
+  var list = document.getElementById("similar-list");
+  if (similar.length === 0) {
+    list.innerHTML = "<div style='text-align:center;color:var(--t2);padding:32px 0;font-size:15px'>유사 사례 없음</div>";
+    return;
+  }
+  list.innerHTML = similar.map(function(c, i) {
+    var hasDraft = c.draftRaw && c.draftRaw.trim();
+    return "<div style='margin-bottom:14px;padding-bottom:14px;" + (i < similar.length-1 ? "border-bottom:1px solid var(--b1)" : "") + "'>" +
+      // 사업명 + 결론
+      "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px'>" +
+        "<div style='font-size:12px;font-weight:600;flex:1;padding-right:8px;line-height:1.4;color:var(--t1)'>" + esc(c.name) + "</div>" +
+        resultDot(c.result) +
+      "</div>" +
+      // 태그
+      "<div style='display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;align-items:center'>" +
+        "<span class='tag'>" + esc(c.bizType) + "</span>" +
+        "<span class='tag'>" + esc(c.country) + "</span>" +
+        "<span style='font-size:10px;color:var(--t3)'>" + esc(c.date||"") + "</span>" +
+      "</div>" +
+      // 탭 버튼
+      "<div style='display:flex;gap:0;margin-bottom:10px;border:1px solid var(--b2);border-radius:7px;overflow:hidden'>" +
+        (hasDraft ?
+          "<button id='stab-d-" + c.id + "' onclick='simTab(this)' data-id='" + c.id + "' data-tab='draft'" +
+            " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;border-right:1px solid var(--b2);cursor:pointer;background:#FF6600;color:#fff;transition:all .15s'>실무자 초안</button>"
+        : "") +
+        "<button id='stab-o-" + c.id + "' onclick='simTab(this)' data-id='" + c.id + "' data-tab='opinion'" +
+          " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;" +
+          (hasDraft ? "background:#1A1A1A;color:#555" : "background:#FF6600;color:#fff") +
+          ";transition:all .15s'>" + "검토의견" + "</button>" +
+      "</div>" +
+      // 내용 표시 영역
+      "<div id='sim-content-" + c.id + "' style='font-size:13px;color:#eee;white-space:pre-wrap;line-height:1.75;" +
+        "background:var(--s3);border:1px solid var(--b2);border-radius:7px;padding:12px 14px;max-height:180px;overflow:auto'>" +
+        esc(hasDraft ? c.draftRaw : (c.opinion||"")) +
+      "</div>" +
+      // 가져오기 버튼
+      "<button id='sim-get-" + c.id + "' onclick='simGet(this)' data-id='" + c.id + "'" +
+        " style='margin-top:8px;width:100%;padding:7px;background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer'>" +
+        "작성란에 가져오기" +
+      "</button>" +
+    "</div>";
+  }).join("");
+
+  // 각 사례별 현재 탭 상태 저장
+  window._simTab = {};
+  similar.forEach(function(c) {
+    window._simTab[c.id] = (c.draftRaw && c.draftRaw.trim()) ? "draft" : "opinion";
+  });
+}
+
+function simTab(btn) {
+  var id = btn.getAttribute("data-id");
+  var tab = btn.getAttribute("data-tab");
+  // 부모에서 형제 버튼 찾기 (ID 방식보다 확실)
+  var parent = btn.parentNode;
+  var allBtns = parent ? parent.querySelectorAll("button") : [];
+  for (var bi = 0; bi < allBtns.length; bi++) {
+    var b = allBtns[bi];
+    var bTab = b.getAttribute("data-tab");
+    if (bTab === tab) {
+      b.style.background = "#FF6600";
+      b.style.color = "#fff";
+    } else if (bTab) {
+      b.style.background = "#1A1A1A";
+      b.style.color = "#555";
+    }
+  }
+  var c = cases.find(function(x){ return String(x.id) === String(id); });
+  if (!c) {
+    // ID로 못 찾으면 버튼 색상만 직접 변경
+    var dBtn = document.getElementById("stab-d-" + id);
+    var oBtn = document.getElementById("stab-o-" + id);
+    if (dBtn) { dBtn.style.background = tab === "draft" ? "#FF6600" : "#1A1A1A"; dBtn.style.color = tab === "draft" ? "#fff" : "#555"; }
+    if (oBtn) { oBtn.style.background = tab === "opinion" ? "#FF6600" : "#1A1A1A"; oBtn.style.color = tab === "opinion" ? "#fff" : "#555"; }
+    var el = document.getElementById("sim-content-" + id);
+    if (el && tab === "draft") el.textContent = btn.closest("[data-draft]") ? btn.closest("[data-draft]").getAttribute("data-draft") : el.textContent;
+    return;
+  }
+  window._simTab = window._simTab || {};
+  window._simTab[id] = tab;
+
+  var hasDraft = c.draftRaw && c.draftRaw.trim();
+  var content = tab === "draft" ? (c.draftRaw||"") : (c.opinion||"");
+  // 버튼 색상 즉시 변경
+  var dBtnE = document.getElementById("stab-d-" + id);
+  var oBtnE = document.getElementById("stab-o-" + id);
+  if (dBtnE) { dBtnE.style.background = tab === "draft" ? "#FF6600" : "#1A1A1A"; dBtnE.style.color = tab === "draft" ? "#fff" : "#555"; }
+  if (oBtnE) { oBtnE.style.background = tab === "opinion" ? "#FF6600" : "#1A1A1A"; oBtnE.style.color = tab === "opinion" ? "#fff" : "#555"; }
+  var label = "작성란에 가져오기";
+
+  // 내용 교체
+  var el = document.getElementById("sim-content-" + id);
+  if (el) el.textContent = content;
+
+  // 가져오기 버튼 텍스트
+  var getBtn = document.getElementById("sim-get-" + id);
+  if (getBtn) getBtn.textContent = "작성란에 가져오기";
+
+  // 탭 스타일 토글
+  var dBtn = document.getElementById("stab-d-" + id);
+  var oBtn = document.getElementById("stab-o-" + id);
+  if (dBtn) {
+    dBtn.style.background = tab === "draft" ? "#FF6600" : "#1A1A1A";
+    dBtn.style.color = tab === "draft" ? "#fff" : "#555";
+  }
+  if (oBtn) {
+    oBtn.style.background = tab === "opinion" ? "#FF6600" : "#1A1A1A";
+    oBtn.style.color = tab === "opinion" ? "#fff" : "#555";
+  }
+}
+
+function simGet(btn) {
+  var id = btn.getAttribute("data-id");
+  var c = cases.find(function(x){ return String(x.id) === String(id); });
+  if (!c) return;
+  var tab = (window._simTab && window._simTab[id]) || "opinion";
+  var content = tab === "draft" ? (c.draftRaw||"") : (c.opinion||"");
+  document.getElementById("d-opinion").value = content;
+  clearMissing(); clearStyle();
+  flash("가져왔습니다");
+}
+
+
+function searchUseDraft(id) {
+  var c = cases.find(function(x){return String(x.id)===String(id);});
+  if(!c||!c.draftRaw) return;
+  document.getElementById("d-opinion").value = c.draftRaw;
+  switchTab("draft"); flash("실무자 초안을 가져왔습니다");
+}
+function searchUseOpinion(id) {
+  var c = cases.find(function(x){return String(x.id)===String(id);});
+  if(!c) return;
+  document.getElementById("d-opinion").value = c.opinion||"";
+  switchTab("draft"); flash("최종 검토의견을 가져왔습니다");
+}
+function addDraftById(id) {
+  var c = cases.find(function(x) { return String(x.id) === String(id); });
+  if (!c || !c.draftRaw) return;
+  var ta = document.getElementById("d-opinion");
+  ta.value = c.draftRaw;
+  clearMissing(); clearStyle();
+  flash("실무자 초안을 추가했습니다");
+}
+function addRefById(id) { addRef(id); }
+function addRef(id) {
+  var c = cases.find(function(x) { return String(x.id) === String(id); });
+  if (!c) return;
+  var ta = document.getElementById("d-opinion");
+  ta.value = c.opinion;
+  flash("참고 내용 추가됨");
+}
+
+// ── AI 초안 생성 ──────────────────────────────────────────────────
+function clearStyle() {
+  document.getElementById("style-result").innerHTML = "";
+  window._styleSuggestions = [];
+}
+
+async function analyzeStyle() {
+  var key = settings.apiKey;
+  if (!key) { flash("API Key를 설정해주세요", "warn"); openModal(); return; }
+  var rawDraft = document.getElementById("d-opinion").value.trim();
+  if (!rawDraft) { flash("검토의견을 입력해주세요", "warn"); return; }
+
+  var btn = document.getElementById("analyze-btn");
+  btn.textContent = "확인 중..."; btn.disabled = true;
+  document.getElementById("style-result").innerHTML = "";
+
+  // 과거 사례에서 팀장 검토의견 스타일 수집
+  var biz = document.getElementById("d-biz").value;
+  var cnt = document.getElementById("d-cnt").value;
+  var refCases = cases.filter(function(c) {
+    return (c.bizType === biz || c.country === cnt) && c.opinion && c.draftRaw;
+  }).slice(0, 4);
+
+  var refText = refCases.length === 0 ? "없음" :
+    refCases.map(function(c, i) {
+      return "[사례" + (i+1) + "] " + c.name + "\n실무자 초안:\n" + c.draftRaw.slice(0,200) + "\n\n검토의견 최종본:\n" + c.opinion.slice(0,300);
+    }).join("\n\n---\n\n");
+
+  try {
+    var res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
+      body: JSON.stringify({
+        model: "claude-opus-4-5", max_tokens: 800,
+        messages: [{role:"user", content:
+          "당신은 에너지 개발 회사의 검토의견 전문가입니다.\n\n" +
+          "[실무자 초안]\n" + rawDraft + "\n\n" +
+          "[과거 유사 사례 — 실무자 초안 vs 팀장 최종본 비교]\n" + refText + "\n\n" +
+          "위 과거 사례에서 팀장이 실무자 초안에 추가하거나 수정한 패턴을 분석하여,\n" +
+          "현재 실무자 초안에서 보완이 필요한 항목을 아래 형식으로 알려주세요.\n\n" +
+          "형식 (JSON만 반환, 다른 텍스트 없이):\n" +
+          '{"missing_style": [{"category": "카테고리", "issue": "문제점 1줄", "suggestion": "보완 방향 1~2줄"}]}'
+        }]
+      })
+    });
+    var data = await res.json();
+    var raw = (data.content||[]).map(function(b){return b.text||"";}).join("");
+    var parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+    var items = parsed.missing_style || [];
+
+    if (items.length === 0) {
+      document.getElementById("style-result").innerHTML =
+        "<div style='padding:10px 14px;background:rgba(60,255,143,.06);border:1px solid rgba(60,255,143,.2);border-radius:7px;display:flex;align-items:center;gap:8px;margin-top:10px'>" +
+        "<span style='width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block'></span>" +
+        "<span style='font-size:12px;font-weight:600;color:var(--green)'>보완 필요 사항 확인 완료 — 보완 항목 없음</span></div>";
+    } else {
+      var html_out = "<div style='margin-top:10px;border:1px solid var(--b2);border-radius:7px;overflow:hidden'>" +
+        "<div style='padding:10px 14px;background:var(--s2);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:8px'>" +
+          "<span style='width:5px;height:5px;border-radius:50%;background:#9966CC;display:inline-block'></span>" +
+          "<span style='font-size:12px;font-weight:700;color:#9966CC'>보완 필요 사항 " + items.length + "개</span>" +
+          "<span style='font-size:11px;color:var(--t3);margin-left:4px'>과거 " + refCases.length + "건 유사 사례 기반</span>" +
+        "</div>" +
+        items.map(function(m, i) {
+          return "<div style='padding:11px 14px;" + (i < items.length-1 ? "border-bottom:1px solid var(--b1)" : "") + "'>" +
+            "<div style='display:flex;align-items:center;gap:7px;margin-bottom:4px'>" +
+              "<span style='font-size:10px;padding:2px 7px;border-radius:3px;background:rgba(153,102,204,.12);color:#9966CC;font-weight:700'>" + esc(m.category) + "</span>" +
+              "<span style='font-size:13px;font-weight:600;color:var(--t1)'>" + esc(m.issue) + "</span>" +
+            "</div>" +
+            "<div style='font-size:12px;color:var(--t2);line-height:1.6;padding-left:2px'>→ " + esc(m.suggestion) + "</div>" +
+            "<button onclick='appendSuggestion(" + i + ")' data-sug='" + esc(m.suggestion) + "'" +
+              " style='margin-top:6px;background:transparent;color:var(--mint);border:1px solid var(--mint);border-radius:5px;padding:3px 10px;font-size:11px;font-weight:600'>초안에 추가</button>" +
+          "</div>";
+        }).join("") +
+      "</div>";
+      document.getElementById("style-result").innerHTML = html_out;
+      window._styleSuggestions = items;
+    }
+  } catch(e) { flash("분석 오류: " + e.message, "err"); }
+  btn.textContent = "보완 필요 사항 확인"; btn.disabled = false;
+}
+
+function appendSuggestion(i) {
+  var items = window._styleSuggestions || [];
+  if (!items[i]) return;
+  var ta = document.getElementById("d-opinion");
+  ta.value += "\n\n[보완] " + items[i].category + ":\n" + items[i].suggestion;
+  flash("실무자 초안에 추가됐습니다");
+}
+
+async function genDraft() {
+  var key = settings.apiKey;
+  if (!key) { flash("API Key를 설정해주세요", "warn"); openModal(); return; }
+  var raw = document.getElementById("d-raw").value;
+  if (!raw.trim()) { flash("품의서 내용을 입력해주세요", "warn"); return; }
+  var biz = document.getElementById("d-biz").value;
+  var cnt = document.getElementById("d-cnt").value;
+  var name = document.getElementById("d-name").value;
+  var btn = document.getElementById("gen-btn");
+  btn.textContent = "초안 생성 중..."; btn.disabled = true;
+  clearMissing();
+  var similar = cases.filter(function(c) { return c.bizType === biz || c.country === cnt; }).slice(0, 5);
+  var caseSum = similar.length === 0 ? "없음" :
+    similar.map(function(c, i) {
+      return "[사례" + (i+1) + "] " + c.name + " (" + c.bizType + "/" + c.country + ") 결론:" + c.result + "\n" + (c.opinion||"").slice(0, 250);
+    }).join("\n---\n");
+  try {
+    var res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
+      body: JSON.stringify({
+        model: "claude-opus-4-5", max_tokens: 1000,
+        messages: [{role:"user", content:
+          "당신은 에너지 개발 회사의 검토의견 전문가입니다.\n\n" +
+          "[품의서]\n" + raw + "\n\n" +
+          "[사업 정보]\n사업유형:" + biz + " / 국가:" + cnt + " / 사업명:" + (name||"미입력") + "\n\n" +
+          "[유사 과거 사례]\n" + caseSum + "\n\n" +
+          "형식:\n1. 핵심 요약 (2~3줄)\n2. 주요 검토포인트\n3. 리스크\n4. 결론 (승인/조건부 승인/추가 검토)\n\n" +
+          "한국어, 간결·명확하게."
+        }]
+      })
+    });
+    var data = await res.json();
+    var text = (data.content || []).map(function(b) { return b.text || ""; }).join("") || "오류 발생";
+    document.getElementById("d-opinion").value = text;
+    document.getElementById("opinion-card").scrollIntoView({behavior:"smooth"});
+  } catch(e) {
+    document.getElementById("d-opinion").value = "오류: " + e.message;
+  }
+  btn.textContent = "AI 초안 생성"; btn.disabled = false;
+}
+
+// ── 누락 항목 확인 ────────────────────────────────────────────────
+async function checkMissing() {
+  var key = settings.apiKey;
+  if (!key) { flash("API Key를 설정해주세요", "warn"); openModal(); return; }
+  var opinion = document.getElementById("d-opinion").value;
+  if (!opinion.trim()) { flash("검토의견을 작성해주세요", "warn"); return; }
+  var biz = document.getElementById("d-biz").value;
+  var btn = document.getElementById("chk-btn");
+  btn.textContent = "체크리스트 대조 중..."; btn.disabled = true;
+  var items = (CHECKLISTS[biz] || []).reduce(function(acc, s) { return acc.concat(s.items); }, []);
+  var list = items.map(function(i) { return "[" + i.id + "] " + i.title + ": " + i.detail; }).join("\n");
+  try {
+    var res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
+      body: JSON.stringify({
+        model: "claude-opus-4-5", max_tokens: 800,
+        messages: [{role:"user", content:
+          "아래 검토의견에서 체크리스트 항목 중 누락되거나 불충분한 것만 JSON으로 반환하세요.\n" +
+          "다른 텍스트 없이 JSON만 반환.\n\n" +
+          "[검토의견]\n" + opinion + "\n\n" +
+          "[체크리스트 (" + biz + ")]\n" + list + "\n\n" +
+          '{"missing":[{"id":"항목ID","title":"항목명","reason":"이유 1줄"}]}'
+        }]
+      })
+    });
+    var data = await res.json();
+    var raw = (data.content || []).map(function(b) { return b.text || ""; }).join("");
+    var parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+    missingItems = parsed.missing || [];
+    renderMissing();
+    flash(missingItems.length === 0 ? "누락 항목 없음 ✓" : missingItems.length + "개 항목 누락 발견", missingItems.length === 0 ? "ok" : "warn");
+  } catch(e) { flash("확인 오류: " + e.message, "err"); }
+  btn.textContent = "누락 항목 확인"; btn.disabled = false;
+}
+
+function renderMissing() {
+  var el = document.getElementById("missing-result");
+  if (missingItems.length === 0) {
+    el.innerHTML = "<div style='padding:10px 14px;background:rgba(60,255,143,.06);border:1px solid rgba(60,255,143,.2);border-radius:7px;display:flex;align-items:center;gap:8px'><span class='dot' style='background:var(--green)'></span><span style='font-size:12px;font-weight:600;color:var(--green)'>누락 항목 없음</span></div>";
+    return;
+  }
+  el.innerHTML = "<div style='border:1px solid var(--b2);border-radius:7px;overflow:hidden'>" +
+    "<div style='padding:10px 14px;background:var(--s2);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:8px'>" +
+      "<span class='dot' style='background:var(--orange)'></span>" +
+      "<span style='font-size:12px;font-weight:700;color:var(--orange)'>누락 항목 " + missingItems.length + "개</span>" +
+    "</div>" +
+    missingItems.map(function(m, i) {
+      return "<div class='missing-item'>" +
+        "<div style='flex:1'>" +
+          "<div style='display:flex;align-items:center;gap:7px;margin-bottom:3px'>" +
+            "<span class='id-badge'>" + esc(m.id) + "</span>" +
+            "<span style='font-size:13px;font-weight:600'>" + esc(m.title) + "</span>" +
+          "</div>" +
+          "<div style='font-size:12px;color:var(--t3);line-height:1.5'>→ " + esc(m.reason) + "</div>" +
+        "</div>" +
+        "<button onclick='addMissing(" + i + ")' style='background:transparent;color:var(--mint);border:1px solid var(--mint);border-radius:5px;padding:4px 10px;font-size:11px;font-weight:600;flex-shrink:0'>추가</button>" +
+      "</div>";
+    }).join("") +
+  "</div>";
+}
+
+function addMissing(i) {
+  var m = missingItems[i];
+  if (!m) return;
+  var ta = document.getElementById("d-opinion");
+  ta.value += "\n\n[보완] " + m.title + ":\n";
+  flash("추가됨");
+}
+
+function clearMissing() {
+  missingItems = [];
+  document.getElementById("missing-result").innerHTML = "";
+}
+
+// ── 저장·복사 ─────────────────────────────────────────────────────
+async function saveCase() {
+  var name = document.getElementById("d-name").value.trim();
+  var opinion = document.getElementById("d-opinion").value.trim();
+  if (!name) { flash("사업명을 입력해주세요", "warn"); return; }
+  if (!opinion) { flash("검토의견을 작성해주세요", "warn"); return; }
+  var nc = {
+    date: new Date().toLocaleDateString("ko-KR"),
+    name: name,
+    bizType: document.getElementById("d-biz").value,
+    country: document.getElementById("d-cnt").value,
+    result: document.getElementById("d-result").value,
+    draftRaw: opinion,
+    opinion: opinion,
+    issues: missingItems.map(function(m) { return m.title; }).join(", "),
+  };
+  try {
+    var res = await fetch(SB_URL + "/rest/v1/cases", {
+      method: "POST", headers: SB_HEADERS, body: JSON.stringify(toRow(nc))
+    });
+    if (res.ok) {
+      flash("저장 완료 ✓");
+      document.getElementById("d-name").value = "";
+      document.getElementById("d-raw").value = "";
+      document.getElementById("d-opinion").value = "";
+      clearMissing(); clearStyle();
+      await loadData(); renderSearch(); renderSimilar();
+    } else { flash("저장 실패", "err"); }
+  } catch(e) { flash("저장 오류: " + e.message, "err"); }
+}
+
+function copyOpinion() {
+  var txt = document.getElementById("d-opinion").value;
+  navigator.clipboard.writeText(txt).then(function() { flash("복사됨"); });
+}
+
+// ── 관리 탭 ──────────────────────────────────────────────────────
+function renderManage() {
+  var el = document.getElementById("manage-list");
+  if (cases.length === 0) {
+    el.innerHTML = "<div class='card' style='text-align:center;padding:40px;color:var(--t3)'>저장된 사례 없음</div>";
+    return;
+  }
+  if (editingId !== null) {
+    var c = cases.find(function(x){ return x.id === editingId; });
+    if (c) {
+      el.innerHTML = "<div class='card'>" +
+        "<div style='font-size:13px;font-weight:600;color:var(--t1);margin-bottom:14px'>수정: " + esc(c.name) + "</div>" +
+        "<div class='grid4' style='margin-bottom:10px'>" +
+          "<div><div class='label'>사업명</div><input id='e-name' value='" + esc(c.name||"") + "'></div>" +
+          "<div><div class='label'>사업유형</div><select id='e-biz'>" + BIZ_TYPES.map(function(t) { return "<option" + (t===c.bizType?" selected":"") + ">" + t + "</option>"; }).join("") + "</select></div>" +
+          "<div><div class='label'>국가</div><select id='e-cnt'>" + COUNTRIES.map(function(ct) { return "<option" + (ct===c.country?" selected":"") + ">" + ct + "</option>"; }).join("") + "</select></div>" +
+          "<div><div class='label'>결론</div><select id='e-result'>" + RESULTS.map(function(r) { return "<option" + (r===c.result?" selected":"") + ">" + r + "</option>"; }).join("") + "</select></div>" +
+        "</div>" +
+        "<div style='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px'>" +
+          "<div><div class='label'>실무자 초안</div><textarea id='e-draft-raw' style='height:120px;resize:vertical'>" + esc(c.draftRaw||"") + "</textarea></div>" +
+          "<div><div class='label'>검토의견 (최종)</div><textarea id='e-opinion' style='height:120px;resize:vertical'>" + esc(c.opinion||"") + "</textarea></div>" +
+        "</div>" +
+        "<div style='display:flex;gap:8px'>" +
+          "<button class='btn-save' onclick='commitEdit(" + c.id + ")'>저장</button>" +
+          "<button class='btn-out' style='border:1px solid var(--b2);color:var(--t2)' onclick='cancelEdit()'>취소</button>" +
+        "</div>" +
+      "</div>";
+      return;
+    }
+  }
+  // 일반 목록: compact row
+  el.innerHTML = "<div class='card' style='padding:0;overflow:hidden'>" +
+    "<table style='width:100%;border-collapse:collapse'>" +
+    "<thead><tr style='border-bottom:1px solid var(--b1)'>" +
+      "<th style='padding:12px 16px;font-size:14px;font-weight:700;color:var(--t2);text-align:left;width:30%'>사업명</th>" +
+      "<th style='padding:12px 12px;font-size:14px;font-weight:700;color:var(--t2);text-align:left;width:14%'>유형</th>" +
+      "<th style='padding:12px 12px;font-size:14px;font-weight:700;color:var(--t2);text-align:left;width:12%'>국가</th>" +
+      "<th style='padding:12px 12px;font-size:14px;font-weight:700;color:var(--t2);text-align:left;width:10%'>결론</th>" +
+      "<th style='padding:12px 12px;font-size:14px;font-weight:700;color:var(--t2);text-align:left;width:10%'>날짜</th>" +
+      "<th style='padding:12px 12px;width:130px'></th>" +
+    "</tr></thead>" +
+    "<tbody>" +
+    cases.map(function(c, i) {
+      var m = {"승인":"var(--green)","조건부 승인":"var(--orange)","추가 검토":"var(--purple)","반려":"var(--red)"};
+      var col = m[c.result] || "var(--t3)";
+      var bg = i % 2 === 0 ? "background:var(--bg)" : "";
+      return "<tr class='mgrow' style='border-bottom:1px solid var(--b1);" + bg + "'>" +
+        "<td style='padding:13px 16px;font-size:15px;font-weight:600;color:var(--t1)'>" + esc(c.name) + "</td>" +
+        "<td style='padding:13px 12px;font-size:14px;color:var(--t1)'>" + esc(c.bizType) + "</td>" +
+        "<td style='padding:13px 12px;font-size:14px;color:var(--t1)'>" + esc(c.country) + "</td>" +
+        "<td style='padding:13px 12px'><span style='font-size:14px;color:" + col + ";font-weight:700;display:flex;align-items:center;gap:6px'><span style='width:7px;height:7px;border-radius:50%;background:" + col + ";display:inline-block'></span>" + esc(c.result) + "</span></td>" +
+        "<td style='padding:13px 12px;font-size:14px;color:var(--t2)'>" + esc(c.date||"") + "</td>" +
+        "<td style='padding:8px 12px'>" +
+          "<div style='display:flex;gap:6px;justify-content:flex-end'>" +
+            "<button onclick='startEdit(" + c.id + ")' style='background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:6px;padding:6px 14px;font-size:13px'>수정</button>" +
+            "<button onclick='deleteCase(" + c.id + ")' style='background:transparent;color:var(--red);border:1px solid var(--red);border-radius:6px;padding:6px 14px;font-size:13px'>삭제</button>" +
+          "</div>" +
+        "</td>" +
+      "</tr>";
+    }).join("") +
+    "</tbody></table></div>";
+}
+
+function startEdit(id) { editingId = id; renderManage(); }
+function cancelEdit(){editingId=null;renderManage();}
+async function resetAll(){
+  if(!confirm("전체 초기화?")) return;
+  await fetch(SB_URL+"/rest/v1/cases?id=gte.0",{method:"DELETE",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}});
+  await loadData();renderManage();flash("초기화됨");
+}
+async function uploadInitData() {
+  if (!confirm("기본 데이터 29건을 DB에 업로드합니다. 계속하시겠습니까?")) return;
+  // 먼저 연결 테스트
+  try {
+    var test = await fetch(SB_URL + "/rest/v1/cases?limit=1", {
+      headers: {"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY}
+    });
+    if (!test.ok) {
+      var errMsg = await test.text();
+      alert("Supabase 연결 실패 (상태: " + test.status + ")\n\n" + errMsg);
+      return;
+    }
+  } catch(e) {
+    alert("네트워크 오류:\n" + e.message);
+    return;
+  }
+  flash("DB 연결 확인 ✓ 업로드 시작...");
+  var ok = 0; var fail = 0;
+  for (var j = 0; j < INIT_CASES.length; j++) {
+    try {
+      var row = INIT_CASES[j];
+      var body = JSON.stringify({
+        date: row.date||"", name: row.name||"",
+        biz_type: row.bizType||"", country: row.country||"",
+        issues: row.issues||"", result: row.result||"승인",
+        draft_raw: row.draftRaw||"", opinion: row.opinion||""
+      });
+      var res = await fetch(SB_URL + "/rest/v1/cases", {
+        method: "POST",
+        headers: {"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},
+        body: body
+      });
+      if (res.ok) { ok++; }
+      else {
+        fail++;
+        if (fail === 1) {
+          var errText = await res.text();
+          console.error("첫 실패:", res.status, errText);
+          alert("업로드 실패 (상태: " + res.status + ")\n\n" + errText + "\n\nSupabase SQL Editor에서 RLS 정책을 확인해주세요.");
+          return;
+        }
+      }
+      if ((j+1) % 5 === 0) flash("(" + (j+1) + "/29건) 업로드 중...");
+    } catch(e) { console.error(j, e); fail++; }
+  }
+  await loadData(); renderSearch(); renderManage();
+  flash(ok + "건 완료" + (fail > 0 ? ", " + fail + "건 실패" : " ✓"));
+}
+
+async function resetAll() {
+  if (!confirm("전체 초기화하시겠습니까?")) return;
+  try {
+    await fetch(SB_URL + "/rest/v1/cases?id=gte.0", {method:"DELETE", headers:SB_HEADERS});
+    await loadData(); renderManage(); flash("초기화됨");
+  } catch(e) { flash("초기화 오류: " + e.message, "err"); }
+}
+async function commitEdit(id) {
+  var updates = {
+    name: document.getElementById("e-name").value,
+    bizType: document.getElementById("e-biz").value,
+    country: document.getElementById("e-cnt").value,
+    result: document.getElementById("e-result").value,
+    draftRaw: document.getElementById("e-draft-raw") ? document.getElementById("e-draft-raw").value : "",
+    opinion: document.getElementById("e-opinion").value,
+  };
+  try {
+    var res = await fetch(SB_URL + "/rest/v1/cases?id=eq." + id, {
+      method: "PATCH", headers: SB_HEADERS, body: JSON.stringify(toRow(updates))
+    });
+    if (res.ok) {
+      editingId = null;
+      await loadData(); renderManage(); flash("수정 완료");
+    } else { flash("수정 실패", "err"); }
+  } catch(e) { flash("수정 오류: " + e.message, "err"); }
+}
+async function deleteCase(id) {
+  if (!confirm("삭제하시겠습니까?")) return;
+  try {
+    await SB.delete(id);
+    await loadData();
+    renderManage();
+    flash("삭제됨");
+  } catch(e) { flash("삭제 오류: " + e.message, "err"); }
+}
+
+// ── 엑셀 가져오기 ────────────────────────────────────────────────
+function importXlsx(input) {
+  var f = input.files[0]; if (!f) return;
+  var r = new FileReader();
+  r.onload = async function(ev) {
+    try {
+      var wb = XLSX.read(ev.target.result, {type:"array"});
+      var rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
+      var added = [];
+      rows.slice(1).forEach(function(row) {
+        var nm = String(row[2]||"").trim();
+        if (!nm) return;
+        added.push({
+          date: String(row[1]||"").trim(),
+          name: nm,
+          bizType: String(row[3]||"기타").trim(),
+          country: String(row[4]||"기타").trim(),
+          issues: String(row[5]||"").trim(),
+          result: String(row[6]||"승인").trim(),
+          draftRaw: String(row[7]||"").trim(),
+          opinion: String(row[8]||row[7]||"").trim()
+        });
+      });
+      if (added.length === 0) { flash("데이터 없음", "warn"); return; }
+      // 첫 번째 행 테스트 INSERT
+      flash("연결 확인 중...");
+      try {
+        var testRes = await fetch(SB_URL + "/rest/v1/cases", {
+          method: "POST",
+          headers: {"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},
+          body: JSON.stringify(toRow(added[0]))
+        });
+        if (!testRes.ok) {
+          var errMsg = await testRes.text();
+          alert("Supabase 오류 (상태: " + testRes.status + ")\n\n" + errMsg);
+          return;
+        }
+      } catch(e) {
+        alert("네트워크 오류:\n" + e.message);
+        return;
+      }
+      // 나머지 업로드
+      var ok = 1;
+      for (var j = 1; j < added.length; j++) {
+        try {
+          var res = await fetch(SB_URL + "/rest/v1/cases", {
+            method: "POST",
+            headers: {"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},
+            body: JSON.stringify(toRow(added[j]))
+          });
+          if (res.ok) ok++;
+          if ((j+1) % 5 === 0) flash("업로드 중... (" + (j+1) + "/" + added.length + "건)");
+        } catch(e) {}
+      }
+      await loadData();
+      switchTab('search');
+      renderSearch();
+      renderManage();
+      flash(ok + "건 업로드 완료 ✓");
+      input.value = "";
+    } catch(err) { flash("오류: " + err.message, "err"); }
+  };
+  r.readAsArrayBuffer(f);
+}
+
+// ── 헬퍼 ─────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+function resultDot(r) {
+  var m = {"승인":"var(--green)","조건부 승인":"var(--orange)","추가 검토":"var(--blue)","반려":"var(--red)"};
+  var col = m[r] || "var(--t3)";
+  return "<span style='display:inline-flex;align-items:center;gap:4px;font-size:11px;color:" + col + ";font-weight:600'><span class='dot' style='background:" + col + "'></span>" + esc(r) + "</span>";
+}
+
+// ── 초기화 ───────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", async function() {
+  settings = LS.getSettings();
+  initSelects();
+  updateCount();
+  renderSearch();
+  renderSimilar();
+  // Supabase에서 데이터 로드
+  await loadData();
+  renderSearch();
+  renderSimilar();
+});
+</script>
+</body>
+</html>
