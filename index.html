@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>검토의견 시스템</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/pdf.min.js"></script>
+<script src="lib/mammoth.browser.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -184,7 +186,15 @@ button:hover{opacity:.75}
         <!-- AI 초안 -->
         <div class="card">
           <div style="margin-bottom:10px"><span style="font-size:13px;font-weight:600;color:var(--t1)">품의서 붙여넣기</span><span style="font-size:12px;color:var(--t2);margin-left:8px">→ AI 초안 생성 &nbsp;|&nbsp; 직접 작성 시 생략 가능 &nbsp;|&nbsp; <a href="https://hcom.cleverse.co/approval/wlT1M05" target="_blank" style="color:#FF6600;text-decoration:none;font-weight:600">Cleverse ↗</a></span></div>
-          <textarea id="d-raw" placeholder="품의서 내용..." style="height:180px;resize:vertical;margin-bottom:10px"></textarea>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+            <input type="file" id="d-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" style="display:none" onchange="extractFile(this)">
+            <button type="button" onclick="document.getElementById('d-file').click()"
+              style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:700;white-space:nowrap">
+              📎 파일 업로드</button>
+            <span style="font-size:12px;color:var(--t2)">PDF · Word · Excel · TXT 지원 (텍스트 자동 추출)</span>
+            <span id="d-file-status" style="font-size:12px;color:#FF9A3C"></span>
+          </div>
+          <textarea id="d-raw" placeholder="품의서 내용을 붙여넣거나 파일을 업로드하세요..." style="height:180px;resize:vertical;margin-bottom:10px"></textarea>
           <button id="gen-btn" class="btn-ai" style="width:100%;padding:11px" onclick="genDraft()">AI 초안 생성</button>
         </div>
         <!-- 검토의견 -->
@@ -1333,6 +1343,98 @@ document.addEventListener("DOMContentLoaded", async function() {
   renderSearch();
   renderSimilar();
 });
+</script>
+<script>
+// ── 품의서 파일 업로드 → 텍스트 자동 추출 ──────────────────────────
+if (window.pdfjsLib) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = "lib/pdf.worker.min.js";
+}
+function dFileStatus(msg, color) {
+  var el = document.getElementById("d-file-status");
+  if (el) { el.textContent = msg || ""; el.style.color = color || "#FF9A3C"; }
+}
+async function extractFile(input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  var name = f.name.toLowerCase();
+  dFileStatus("⏳ " + f.name + " 추출 중...", "#FF9A3C");
+  try {
+    var text = "";
+    if (name.endsWith(".pdf")) {
+      text = await extractPdf(f);
+    } else if (name.endsWith(".docx")) {
+      text = await extractDocx(f);
+    } else if (name.endsWith(".doc")) {
+      throw new Error("구형 .doc는 미지원입니다. .docx로 저장 후 업로드하거나 내용을 직접 붙여넣어 주세요.");
+    } else if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv")) {
+      text = await extractExcel(f);
+    } else if (name.endsWith(".txt")) {
+      text = await f.text();
+    } else {
+      throw new Error("지원하지 않는 형식입니다.");
+    }
+    text = (text || "").trim();
+    if (!text) throw new Error("추출된 텍스트가 없습니다. (이미지 기반 PDF일 수 있음)");
+    var ta = document.getElementById("d-raw");
+    ta.value = text;
+    dFileStatus("✓ " + f.name + " 적용됨 (" + text.length.toLocaleString() + "자)", "#3CFF8F");
+    if (typeof flash === "function") flash("파일 텍스트를 품의서 칸에 넣었습니다", "ok");
+  } catch (e) {
+    dFileStatus("✕ " + e.message, "#FF4747");
+    if (typeof flash === "function") flash("추출 실패: " + e.message, "err");
+  } finally {
+    input.value = "";
+  }
+}
+function extractPdf(f) {
+  return new Promise(function (resolve, reject) {
+    var r = new FileReader();
+    r.onload = async function (ev) {
+      try {
+        var pdf = await pdfjsLib.getDocument({ data: new Uint8Array(ev.target.result) }).promise;
+        var out = "";
+        for (var p = 1; p <= pdf.numPages; p++) {
+          var page = await pdf.getPage(p);
+          var content = await page.getTextContent();
+          out += content.items.map(function (it) { return it.str; }).join(" ") + "\n";
+        }
+        resolve(out);
+      } catch (err) { reject(err); }
+    };
+    r.onerror = function () { reject(new Error("파일 읽기 실패")); };
+    r.readAsArrayBuffer(f);
+  });
+}
+function extractDocx(f) {
+  return new Promise(function (resolve, reject) {
+    var r = new FileReader();
+    r.onload = function (ev) {
+      mammoth.extractRawText({ arrayBuffer: ev.target.result })
+        .then(function (res) { resolve(res.value); })
+        .catch(reject);
+    };
+    r.onerror = function () { reject(new Error("파일 읽기 실패")); };
+    r.readAsArrayBuffer(f);
+  });
+}
+function extractExcel(f) {
+  return new Promise(function (resolve, reject) {
+    var r = new FileReader();
+    r.onload = function (ev) {
+      try {
+        var wb = XLSX.read(ev.target.result, { type: "array" });
+        var out = "";
+        wb.SheetNames.forEach(function (sn) {
+          out += "[시트: " + sn + "]\n";
+          out += XLSX.utils.sheet_to_csv(wb.Sheets[sn]) + "\n\n";
+        });
+        resolve(out);
+      } catch (err) { reject(err); }
+    };
+    r.onerror = function () { reject(new Error("파일 읽기 실패")); };
+    r.readAsArrayBuffer(f);
+  });
+}
 </script>
 </body>
 </html>
