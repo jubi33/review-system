@@ -162,9 +162,8 @@ button:hover{opacity:.75}
         <span style="color:#FF6600">●</span> 검토의견
       </span>
       <div style="display:flex;gap:2px">
-        <button class="tab-btn active" id="tab-search" onclick="switchTab('search')">검색</button>
-        <button class="tab-btn" id="tab-draft" onclick="switchTab('draft')">작성</button>
-        <button class="tab-btn" id="tab-manage" onclick="switchTab('manage')">관리</button>
+        <button class="tab-btn active" id="tab-draft" onclick="switchTab('draft')">작성</button>
+        <button class="tab-btn" id="tab-manage" onclick="switchTab('manage')">조회·관리</button>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px">
@@ -177,32 +176,33 @@ button:hover{opacity:.75}
 <!-- Content -->
 <div id="content">
   <!-- 검색 탭 -->
-  <div id="pane-search">
-    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center">
-      <select id="s-biz" style="width:140px" onchange="renderSearch()"><option>전체</option></select>
-      <select id="s-cnt" style="width:120px" onchange="renderSearch()"><option>전체</option></select>
-      <select id="s-year" style="width:90px" onchange="renderSearch()"><option value="">연도</option></select>
-      <select id="s-month" style="width:80px" onchange="renderSearch()">
-        <option value="">월</option>
-        <option value="01">1월</option><option value="02">2월</option><option value="03">3월</option>
-        <option value="04">4월</option><option value="05">5월</option><option value="06">6월</option>
-        <option value="07">7월</option><option value="08">8월</option><option value="09">9월</option>
-        <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
-      </select>
-      <input id="s-key" placeholder="키워드 검색..." style="flex:1;min-width:140px" oninput="renderSearch()">
-      <div id="s-count" style="padding:0 12px;background:var(--s1);border:1px solid var(--b1);border-radius:6px;display:flex;align-items:center;font-size:12px;color:var(--t3);white-space:nowrap;height:38px">0건</div>
-    </div>
-    <div id="search-results" class="grid-search"></div>
-  </div>
-
   <!-- 작성 탭 -->
-  <div id="pane-draft" class="hidden">
+  <div id="pane-draft">
+    <!-- 역할 모드 토글 -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="display:flex;background:var(--s2);border:1px solid var(--b1);border-radius:9px;padding:3px">
+        <button id="role-staff" onclick="setRole('staff')" style="padding:7px 18px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:#FF6600;color:#fff">실무자</button>
+        <button id="role-lead" onclick="setRole('lead')" style="padding:7px 18px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:var(--t2)">팀장</button>
+      </div>
+      <span id="role-desc" style="font-size:12px;color:var(--t2)">초안 작성 후 팀장에게 검토 요청</span>
+    </div>
+    <!-- 팀장: 검토 대기 목록 -->
+    <div id="lead-queue" class="card" style="display:none;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:13px;font-weight:700;color:var(--t1)">검토 대기 목록</span>
+          <span id="queue-count" style="font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(255,102,0,.12);color:#FF9A3C;font-weight:700">0</span>
+        </div>
+        <button onclick="loadQueue()" style="background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">새로고침</button>
+      </div>
+      <div id="queue-list"><div style="font-size:12px;color:var(--t3);padding:8px 2px">새로고침을 눌러 실무자가 올린 검토 요청을 불러오세요</div></div>
+    </div>
     <div class="grid-draft">
       <div>
         <!-- 기본 정보 -->
         <div class="card">
           <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
-            <span style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span>
+            <span id="badge-info" style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span>
             <span style="font-size:13px;font-weight:700;color:var(--t1)">기본 정보</span>
             <span style="font-size:12px;color:var(--t2)">유사사례 검색의 기준이자, 저장 시 사업명으로 함께 사용됩니다</span>
           </div>
@@ -214,7 +214,7 @@ button:hover{opacity:.75}
           </div>
         </div>
         <!-- AI 초안 -->
-        <div class="card">
+        <div class="card" id="ai-draft-card">
           <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
             <span style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span>
             <span style="font-size:13px;font-weight:700;color:var(--t1)">품의서 입력 → AI 초안 생성</span>
@@ -234,22 +234,43 @@ button:hover{opacity:.75}
         <!-- 검토의견 -->
         <div class="card" id="opinion-card">
           <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
-            <span style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span>
+            <span id="badge-opinion" style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span>
             <span style="font-size:13px;font-weight:700;color:var(--t1)">검토의견 작성</span>
           </div>
           <div style="margin-bottom:10px;padding-left:31px">
-            <span style="font-size:12px;color:var(--t2)">실무자 초안 또는 최종 검토의견 — AI 초안 생성 후 자동 입력됩니다 · 작성 후 보완·누락 점검 → 저장</span>
+            <span id="opinion-desc" style="font-size:12px;color:var(--t2)">실무자 초안 또는 최종 검토의견 — AI 초안 생성 후 자동 입력됩니다 · 작성 후 보완·누락 점검 → 저장</span>
           </div>
-          <textarea id="d-opinion" id2="d-draft-raw" placeholder="검토의견을 작성하거나 AI 초안을 생성하세요..." style="height:260px;resize:vertical;line-height:1.75;margin-bottom:10px" oninput="clearMissing();clearStyle()"></textarea>
-          <div id="style-result" style="margin-bottom:6px"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-            <button id="analyze-btn" onclick="analyzeStyle()"
-              style="padding:10px;background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:7px;font-size:13px;font-weight:700">
-              보완 필요 사항 확인
-            </button>
-            <button id="chk-btn" class="btn-check" style="padding:10px" onclick="checkMissing()">누락 항목 확인</button>
+          <div id="opinion-split" style="display:flex;gap:12px;margin-bottom:10px">
+            <div id="staff-draft-ref" style="display:none;flex:1;min-width:0">
+              <div style="font-size:11px;font-weight:700;color:var(--t3);margin-bottom:5px">실무자 초안 (참고)</div>
+              <textarea id="d-staff-ref" readonly style="width:100%;height:320px;resize:vertical;line-height:1.7;background:var(--s2);color:var(--t2);font-size:12.5px"></textarea>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div id="edit-label" style="display:none;font-size:11px;font-weight:700;color:#FF9A3C;margin-bottom:5px">팀장 최종 검토의견 (편집)</div>
+              <textarea id="d-opinion" id2="d-draft-raw" placeholder="검토의견을 작성하거나 AI 초안을 생성하세요..." style="width:100%;height:320px;resize:vertical;line-height:1.75" oninput="clearMissing();clearStyle()"></textarea>
+              <div id="check-hint" style="display:none;font-size:11px;color:var(--t3);margin:8px 0 6px">↓ 아래 점검은 위 검토의견(편집칸)을 대상으로 합니다</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+                <button id="analyze-btn" onclick="analyzeStyle()"
+                  style="padding:10px;background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:7px;font-size:13px;font-weight:700">
+                  보완 필요 사항 확인
+                </button>
+                <button id="chk-btn" class="btn-check" style="padding:10px" onclick="checkMissing()">누락 항목 확인</button>
+              </div>
+              <div id="style-result" style="margin-top:8px"></div>
+              <div id="missing-result" style="margin-top:8px"></div>
+            </div>
           </div>
-          <div id="missing-result"></div>
+          <div id="staff-submit-wrap" style="display:none;margin-top:14px;border-top:1px solid var(--b1);padding-top:14px">
+            <button style="width:100%;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="submitForReview()">팀장 검토 요청</button>
+            <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">저장 후 팀장의 검토 대기 목록에 표시됩니다</div>
+          </div>
+          <div id="lead-submit-wrap" style="display:none;margin-top:14px;border-top:1px solid var(--b1);padding-top:14px">
+            <div style="display:flex;gap:8px">
+              <button style="flex:1;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="saveFinal()">최종 확정 저장</button>
+              <button style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyFinalOrOpinion()">복사</button>
+            </div>
+            <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">확정 시 검토 대기 목록에서 사라지고 완료 처리됩니다</div>
+          </div>
         </div>
         <!-- 최종 검토의견 -->
         <div class="card" id="final-card">
@@ -293,7 +314,7 @@ button:hover{opacity:.75}
           <div id="similar-list" style="max-height:calc(100vh - 220px);overflow-y:auto;padding:12px"></div>
           <div style="border-top:1px solid var(--b1);padding:10px 12px">
             <input style="font-size:14px" id="similar-search" placeholder="키워드 검색 (Enter → 검색 탭)" style="font-size:11px;padding:7px 10px"
-              onkeydown="if(event.key==='Enter'&&this.value){document.getElementById('s-key').value=this.value;switchTab('search');flash('검색 탭으로 이동')}">
+              onkeydown="if(event.key==='Enter'&&this.value){document.getElementById('s-key').value=this.value;switchTab('manage');renderManage();flash('조회·관리 탭에서 검색')}">
           </div>
         </div>
       </div>
@@ -302,6 +323,20 @@ button:hover{opacity:.75}
 
   <!-- 관리 탭 -->
   <div id="pane-manage" class="hidden">
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
+      <select id="s-biz" style="width:140px" onchange="renderManage()"><option>전체</option></select>
+      <select id="s-cnt" style="width:120px" onchange="renderManage()"><option>전체</option></select>
+      <select id="s-year" style="width:90px" onchange="renderManage()"><option value="">연도</option></select>
+      <select id="s-month" style="width:80px" onchange="renderManage()">
+        <option value="">월</option>
+        <option value="01">1월</option><option value="02">2월</option><option value="03">3월</option>
+        <option value="04">4월</option><option value="05">5월</option><option value="06">6월</option>
+        <option value="07">7월</option><option value="08">8월</option><option value="09">9월</option>
+        <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
+      </select>
+      <input id="s-key" placeholder="키워드 검색..." style="flex:1;min-width:140px" oninput="renderManage()">
+      <div id="s-count" style="padding:0 12px;background:var(--s1);border:1px solid var(--b1);border-radius:6px;display:flex;align-items:center;font-size:12px;color:var(--t3);white-space:nowrap;height:38px">0건</div>
+    </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <input type="file" id="xlsx-input" accept=".xlsx,.xls" style="display:none" onchange="importXlsx(this)">
       <button onclick="document.getElementById('xlsx-input').click()"
@@ -499,9 +534,11 @@ async function loadData() {
       headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
     });
     var rows = await res.json();
-    cases = Array.isArray(rows) ? rows.map(fromRow) : [];
+    var all = Array.isArray(rows) ? rows.map(fromRow) : [];
+    window.allCases = all;  // 전체 (팀장 대기목록용 — [검토중] 포함)
+    cases = all.filter(function(c){ return (c.result||"").indexOf("[검토중]")!==0; });  // 완료 건만 (검색·유사사례·AI학습)
   } catch(e) {
-    cases = [];
+    cases = []; window.allCases = [];
     flash("DB 연결 실패: "+e.message,"err");
   }
   updateCount();
@@ -662,13 +699,12 @@ async function findSimilarCases(queryText, biz, cnt, topN) {
 
 // ── 탭 전환 ──────────────────────────────────────────────────────
 function switchTab(tab) {
-  ["search","draft","manage"].forEach(function(t) {
+  ["draft","manage"].forEach(function(t) {
     document.getElementById("pane-" + t).classList.toggle("hidden", t !== tab);
     var btn = document.getElementById("tab-" + t);
     btn.classList.toggle("active", t === tab);
   });
   currentTab = tab;
-  if (tab === "search") renderSearch();
   if (tab === "draft") renderSimilar();
   if (tab === "manage") renderManage();
 }
@@ -715,62 +751,8 @@ function initSelects() {
     });
   }
 }
-function renderSearch() {
-  var biz = document.getElementById("s-biz").value;
-  var cnt = document.getElementById("s-cnt").value;
-  var key = document.getElementById("s-key").value;
-  var yr  = (document.getElementById("s-year")||{value:""}).value;
-  var mo  = (document.getElementById("s-month")||{value:""}).value;
-  var filtered = cases.filter(function(c) {
-    var b  = biz === "전체" || c.bizType === biz;
-    var ct = cnt === "전체" || c.country === cnt;
-    var k  = !key || [c.name,c.opinion,c.draftRaw,c.issues].join(" ").includes(key);
-    var d  = c.date || "";
-    var y  = !yr || d.startsWith(yr);
-    var m  = !mo || d.split(".")[1] === mo;
-    return b && ct && k && y && m;
-  });
-  document.getElementById("s-count").textContent = filtered.length + "/" + cases.length + "건";
-  var container = document.getElementById("search-results");
-  if (filtered.length === 0) {
-    container.innerHTML = "<div class='card' style='text-align:center;padding:48px;color:var(--t3)'>" + (cases.length === 0 ? "저장된 사례가 없습니다" : "검색 결과 없음") + "</div>";
-    return;
-  }
-  container.innerHTML = filtered.map(function(c) {
-    var dot = resultDot(c.result);
-    return "<div class='card case-card' onclick='toggleCase(" + c.id + ")'>" +
-      "<div style='display:flex;justify-content:space-between;align-items:flex-start'>" +
-        "<div style='flex:1;padding-right:10px'>" +
-          "<div class='case-name' style='margin-bottom:6px'>" + esc(c.name) + "</div>" +
-          (c.date ? "<div style='font-size:14px;font-weight:600;color:var(--acc);margin-bottom:8px'>" + esc(c.date) + "</div>" : "") +
-        "</div>" +
-        "<span id='arrow-" + c.id + "' style='color:var(--t3);font-size:16px;flex-shrink:0;margin-left:8px;transition:transform .25s'>⌄</span>" +
-      "</div>" +
-      "<div class='case-meta'>" +
-        "<span class='tag'>" + esc(c.bizType) + "</span>" +
-        "<span class='tag'>" + esc(c.country) + "</span>" +
-        dot +
-      "</div>" +
-      (c.issues ? "<div class='case-issues'>🏷 " + esc(c.issues) + "</div>" : "") +
-      "<div id='ref-btn-" + c.id + "' class='hidden' style='margin-top:12px'>" +
-        "<div style='display:flex;gap:0;margin-bottom:10px;border:1px solid var(--b2);border-radius:7px;overflow:hidden'>" +
-        (c.draftRaw ?
-           "<button id='stab-d-" + c.id + "' onclick='event.stopPropagation();sTab(this)' data-id='" + c.id + "' data-tab='draft'" +
-           " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;border-right:1px solid var(--b2);cursor:pointer;background:#FF6600;color:#fff'>실무자 초안</button>" : "") +
-        "<button id='stab-o-" + c.id + "' onclick='event.stopPropagation();sTab(this)' data-id='" + c.id + "' data-tab='opinion'" +
-          " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;" +
-          (c.draftRaw ? "background:#1A1A1A;color:#555" : "background:#FF6600;color:#fff") + "'>검토의견</button>" +
-        "</div>" +
-        "<div id='sref-content-" + c.id + "' onclick='expandContent(this)' style='font-size:13px;color:#eee;white-space:pre-wrap;line-height:1.75;cursor:pointer;" +
-          "background:var(--s3);border:1px solid var(--b2);border-radius:7px;padding:12px 14px;max-height:200px;overflow:hidden' title='클릭하면 전체 보기'>" +
-          (c.draftRaw ? esc(c.draftRaw) : esc(c.opinion||"")) +
-        "</div>" +
-        "<button id='sref-get-" + c.id + "' onclick='event.stopPropagation();sGet(this)' data-id='" + c.id + "' data-tab='" + (c.draftRaw ? "draft" : "opinion") + "'" +
-          " style='margin-top:8px;width:100%;padding:7px;background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer'>작성란에 가져오기</button>" +
-      "</div>" +
-    "</div>";
-  }).join("");
-}
+// renderSearch는 관리 탭으로 통합됨 — 호환용 별칭
+function renderSearch() { if (typeof renderManage==="function") renderManage(); }
 
 function expandContent(el) {
   event.stopPropagation();
@@ -1239,6 +1221,22 @@ function copyOpinion() {
 // ── 관리 탭 ──────────────────────────────────────────────────────
 function renderManage() {
   var el = document.getElementById("manage-list");
+  // 검색 필터 적용
+  var biz = (document.getElementById("s-biz")||{value:"전체"}).value;
+  var cnt = (document.getElementById("s-cnt")||{value:"전체"}).value;
+  var key = (document.getElementById("s-key")||{value:""}).value;
+  var yr  = (document.getElementById("s-year")||{value:""}).value;
+  var mo  = (document.getElementById("s-month")||{value:""}).value;
+  var list = cases.filter(function(c) {
+    var b  = biz === "전체" || c.bizType === biz;
+    var ct = cnt === "전체" || c.country === cnt;
+    var k  = !key || [c.name,c.opinion,c.draftRaw,c.issues].join(" ").includes(key);
+    var d  = c.date || "";
+    var y  = !yr || d.startsWith(yr);
+    var m  = !mo || d.split(".")[1] === mo;
+    return b && ct && k && y && m;
+  });
+  var sc = document.getElementById("s-count"); if (sc) sc.textContent = list.length + "/" + cases.length + "건";
   if (cases.length === 0) {
     el.innerHTML = "<div class='card' style='text-align:center;padding:40px;color:var(--t3)'>저장된 사례 없음</div>";
     return;
@@ -1267,6 +1265,10 @@ function renderManage() {
     }
   }
   // 일반 목록: compact row
+  if (list.length === 0) {
+    el.innerHTML = "<div class='card' style='text-align:center;padding:40px;color:var(--t3)'>검색 결과 없음</div>";
+    return;
+  }
   el.innerHTML = "<div class='card' style='padding:0;overflow:hidden'>" +
     "<table style='width:100%;border-collapse:collapse'>" +
     "<thead><tr style='border-bottom:1px solid var(--b1)'>" +
@@ -1278,7 +1280,7 @@ function renderManage() {
       "<th style='padding:12px 12px;width:130px'></th>" +
     "</tr></thead>" +
     "<tbody>" +
-    cases.map(function(c, i) {
+    list.map(function(c, i) {
       var m = {"승인":"var(--green)","조건부 승인":"var(--orange)","추가 검토":"var(--purple)","반려":"var(--red)"};
       var col = m[c.result] || "var(--t3)";
       var bg = i % 2 === 0 ? "background:var(--bg)" : "";
@@ -1446,8 +1448,7 @@ function importXlsx(input) {
         } catch(e) {}
       }
       await loadData();
-      switchTab('search');
-      renderSearch();
+      switchTab('manage');
       renderManage();
       flash(ok + "건 업로드 완료 ✓");
       input.value = "";
@@ -1471,15 +1472,131 @@ document.addEventListener("DOMContentLoaded", async function() {
   settings = LS.getSettings();
   initSelects();
   updateCount();
-  renderSearch();
   renderSimilar();
   // Supabase에서 데이터 로드
   await loadData();
-  renderSearch();
+  switchTab("draft");
   renderSimilar();
 });
 </script>
 <script>
+// ── 역할 모드 (실무자 / 팀장) ─────────────────────────────────────
+var REVIEW_TAG = "[검토중]";
+var currentRole = "staff";
+function setRole(role) {
+  currentRole = role;
+  try { localStorage.setItem("rv_role", role); } catch(e) {}
+  var staffBtn = document.getElementById("role-staff");
+  var leadBtn = document.getElementById("role-lead");
+  var on = "background:#FF6600;color:#fff", off = "background:transparent;color:var(--t2)";
+  staffBtn.style.cssText = "padding:7px 18px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;" + (role==="staff"?on:off);
+  leadBtn.style.cssText = "padding:7px 18px;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;" + (role==="lead"?on:off);
+  var isLead = role==="lead";
+  document.getElementById("role-desc").textContent =
+    isLead ? "실무자 초안을 받아 직접 검토 → 최종 확정 (AI는 참고용)" : "초안 작성 후 팀장에게 검토 요청";
+
+  // 팀장 전용 / 실무자 전용 영역
+  document.getElementById("lead-queue").style.display = isLead ? "block" : "none";
+  document.getElementById("staff-submit-wrap").style.display = isLead ? "none" : "block";
+  document.getElementById("lead-submit-wrap").style.display = isLead ? "block" : "none";
+
+  // ② 품의서/AI초안 카드: 실무자만 사용 (팀장은 품의서 다시 안 넣음)
+  var aiCard = document.getElementById("ai-draft-card");
+  if (aiCard) aiCard.style.display = isLead ? "none" : "block";
+
+  // ④ AI 최종본 생성 카드: 실무자만 (팀장은 직접 작성이 주)
+  document.getElementById("final-card").style.display = isLead ? "none" : "block";
+
+  // ③ 검토의견: 팀장 모드면 좌측 실무자초안 참고패널 + 편집라벨 표시
+  document.getElementById("staff-draft-ref").style.display = isLead ? "block" : "none";
+  document.getElementById("edit-label").style.display = isLead ? "block" : "none";
+  var ch = document.getElementById("check-hint"); if (ch) ch.style.display = isLead ? "block" : "none";
+  // 번호 재매김: 팀장은 ②④가 숨겨지므로 검토의견을 ②로
+  var bo = document.getElementById("badge-opinion"); if (bo) bo.textContent = isLead ? "2" : "3";
+  document.getElementById("opinion-desc").textContent = isLead
+    ? "왼쪽 실무자 초안을 참고하여 오른쪽에서 최종 검토의견을 직접 작성하세요 · 보완·누락 점검은 참고용"
+    : "검토의견 초안을 작성하세요 · AI 초안 생성 후 자동 입력됩니다 · 작성 후 점검 → 검토 요청";
+
+  if (isLead) loadQueue();
+}
+
+// 실무자: 팀장 검토 요청 (result에 [검토중] 태그 붙여 저장)
+async function submitForReview() {
+  var name = document.getElementById("d-name").value.trim();
+  var opinion = document.getElementById("d-opinion").value.trim();
+  if (!name) { flash("① 기본 정보의 사업명을 입력하세요", "warn"); document.getElementById("d-name").focus(); return; }
+  if (!opinion) { flash("검토의견 초안을 작성하세요", "warn"); return; }
+  var baseResult = document.getElementById("d-result").value;
+  var nc = {
+    date: new Date().toLocaleDateString("ko-KR"),
+    name: name,
+    bizType: document.getElementById("d-biz").value,
+    country: document.getElementById("d-cnt").value,
+    result: REVIEW_TAG + baseResult,   // 상태 태그
+    draftRaw: opinion,
+    opinion: opinion,
+    issues: (typeof missingItems!=="undefined"&&missingItems?missingItems:[]).map(function(m){return m.title||m.item||"";}).join(", "),
+  };
+  try {
+    var res = await fetch(SB_URL + "/rest/v1/cases", { method:"POST", headers:SB_HEADERS, body:JSON.stringify(toRow(nc)) });
+    if (res.ok) {
+      flash("팀장 검토 요청 완료 ✓");
+      document.getElementById("d-name").value = "";
+      document.getElementById("d-raw").value = "";
+      document.getElementById("d-opinion").value = "";
+      if (typeof clearMissing==="function") clearMissing();
+      if (typeof clearStyle==="function") clearStyle();
+      await loadData();
+    } else { flash("요청 실패", "err"); }
+  } catch(e) { flash("오류: " + e.message, "err"); }
+}
+
+// 팀장: 검토 대기 목록 불러오기 ([검토중] 태그 달린 건만)
+async function loadQueue() {
+  try {
+    await loadData();
+    var all = window.allCases || [];
+    var pending = all.filter(function(c){ return (c.result||"").indexOf(REVIEW_TAG)===0; });
+    document.getElementById("queue-count").textContent = pending.length;
+    var el = document.getElementById("queue-list");
+    if (pending.length===0) {
+      el.innerHTML = "<div style='font-size:12px;color:var(--t3);padding:8px 2px'>검토 대기 중인 초안이 없습니다</div>";
+      return;
+    }
+    el.innerHTML = pending.map(function(c){
+      return "<div style='display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--b2);border-radius:7px;margin-bottom:7px'>" +
+        "<div style='min-width:0'>" +
+          "<div style='font-size:13px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis'>" + esc(c.name) + "</div>" +
+          "<div style='font-size:11px;color:var(--t3);margin-top:2px'>" + esc(c.bizType||"") + " · " + esc(c.country||"") + " · " + esc(c.date||"") + "</div>" +
+        "</div>" +
+        "<button onclick='loadFromQueue(" + c.id + ")' style='flex:none;margin-left:10px;background:#FF6600;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer'>불러오기</button>" +
+      "</div>";
+    }).join("");
+  } catch(e) { flash("목록 오류: " + e.message, "err"); }
+}
+
+// 팀장: 대기 목록에서 초안 불러와 작성란에 채우기
+function loadFromQueue(id) {
+  var all = window.allCases || [];
+  var c = all.find(function(x){ return x.id===id; });
+  if (!c) { flash("초안을 찾을 수 없습니다", "warn"); return; }
+  window._reviewingId = id;  // 최종 확정 시 이 건을 업데이트
+  document.getElementById("d-name").value = c.name||"";
+  document.getElementById("d-biz").value = c.bizType||"";
+  document.getElementById("d-cnt").value = c.country||"";
+  document.getElementById("d-result").value = (c.result||"").replace(REVIEW_TAG, "") || "승인";
+  var draft = c.opinion || c.draftRaw || "";
+  var refEl = document.getElementById("d-staff-ref");
+  if (refEl) refEl.value = draft;                       // 왼쪽: 실무자 원본 (읽기)
+  document.getElementById("d-opinion").value = draft;   // 오른쪽: 팀장이 다듬을 출발점
+  document.getElementById("d-raw").value = "";
+  if (typeof clearMissing==="function") clearMissing();
+  if (typeof clearStyle==="function") clearStyle();
+  if (typeof renderSimilar==="function") renderSimilar();
+  document.getElementById("opinion-card").scrollIntoView({behavior:"smooth"});
+  flash(c.name + " 초안을 불러왔습니다");
+}
+
 // ── ④ 최종 검토의견 생성 (보완·누락 반영) ─────────────────────────
 async function genFinal() {
   if (typeof llmReady === "function" && !llmReady()) return;
@@ -1557,11 +1674,45 @@ function copyFinalOrOpinion() {
   });
 }
 // ④ 통합 저장: 최종본이 있으면 검토의견란에 반영 후 저장, 없으면 ③ 검토의견 그대로 저장
-function saveFinal() {
+async function saveFinal() {
   var fin = document.getElementById("final-text").textContent || "";
   if (fin.trim()) {
     document.getElementById("d-opinion").value = fin;  // 최종본을 저장 대상으로
   }
+  // 팀장이 대기목록에서 불러온 건이면 → 그 건을 업데이트(상태 태그 제거)
+  if (window._reviewingId) {
+    var name = document.getElementById("d-name").value.trim();
+    var opinion = document.getElementById("d-opinion").value.trim();
+    if (!opinion) { flash("검토의견이 비어 있습니다", "warn"); return; }
+    var nc = {
+      date: new Date().toLocaleDateString("ko-KR"),
+      name: name,
+      bizType: document.getElementById("d-biz").value,
+      country: document.getElementById("d-cnt").value,
+      result: document.getElementById("d-result").value.replace(REVIEW_TAG, "") || "승인",  // 태그 제거 = 완료
+      draftRaw: opinion,
+      opinion: opinion,
+      issues: "",
+    };
+    try {
+      var res = await fetch(SB_URL + "/rest/v1/cases?id=eq." + window._reviewingId, {
+        method:"PATCH", headers:SB_HEADERS, body:JSON.stringify(toRow(nc))
+      });
+      if (res.ok) {
+        flash("최종 확정 완료 ✓");
+        window._reviewingId = null;
+        document.getElementById("d-name").value = "";
+        document.getElementById("d-opinion").value = "";
+        var fp=document.getElementById("final-preview"); if(fp) fp.style.display="none";
+        var ft=document.getElementById("final-text"); if(ft) ft.textContent="";
+        if (typeof clearMissing==="function") clearMissing();
+        if (typeof clearStyle==="function") clearStyle();
+        await loadData(); loadQueue();
+      } else { flash("확정 실패", "err"); }
+    } catch(e) { flash("오류: " + e.message, "err"); }
+    return;
+  }
+  // 불러온 건이 없으면 신규 저장
   saveCase();
 }
 function applyFinalToOpinion() {
@@ -1665,6 +1816,16 @@ function extractExcel(f) {
     r.readAsArrayBuffer(f);
   });
 }
+
+// 저장된 역할 적용 (기본: 실무자). 작성 탭 진입 시 반영되도록 약간 지연
+(function initRole(){
+  var saved = "staff";
+  try { saved = localStorage.getItem("rv_role") || "staff"; } catch(e) {}
+  function apply(){ if (typeof setRole==="function" && document.getElementById("role-staff")) setRole(saved); }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function(){ setTimeout(apply, 100); });
+  } else { setTimeout(apply, 100); }
+})();
 </script>
 </body>
 </html>
