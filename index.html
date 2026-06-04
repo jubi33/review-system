@@ -693,8 +693,16 @@ async function findSimilarCases(queryText, biz, cnt, topN) {
       return scored.slice(0, topN).map(function(s){ return s.c; });
     }
   }
-  // fallback: 사업유형/국가 기반 필터
-  return cases.filter(function(c) { return c.bizType === biz || c.country === cnt; }).slice(0, topN);
+  // fallback: 사업유형/국가 관련도 순 (유형+2, 국가+1, 무관 제외)
+  var sc = cases.map(function(c) {
+    var s = 0;
+    if (biz && biz !== "전체" && c.bizType === biz) s += 2;
+    if (cnt && cnt !== "전체" && c.country === cnt) s += 1;
+    if ((!biz || biz === "전체") && (!cnt || cnt === "전체")) s = 1;
+    return { c: c, score: s };
+  }).filter(function(x){ return x.score > 0; });
+  sc.sort(function(a, b){ return b.score - a.score; });
+  return sc.slice(0, topN).map(function(x){ return x.c; });
 }
 
 // ── 탭 전환 ──────────────────────────────────────────────────────
@@ -717,8 +725,7 @@ function updateCount() {
 function initSelects() {
   ["s-biz","d-biz"].forEach(function(id) {
     var sel = document.getElementById(id);
-    if (id === "s-biz") sel.innerHTML = "<option>전체</option>";
-    else sel.innerHTML = "";
+    sel.innerHTML = "<option>전체</option>";
     BIZ_TYPES.forEach(function(t) {
       var opt = document.createElement("option");
       opt.textContent = t;
@@ -727,8 +734,7 @@ function initSelects() {
   });
   ["s-cnt","d-cnt"].forEach(function(id) {
     var sel = document.getElementById(id);
-    if (id === "s-cnt") sel.innerHTML = "<option>전체</option>";
-    else sel.innerHTML = "";
+    sel.innerHTML = "<option>전체</option>";
     COUNTRIES.forEach(function(c) {
       var opt = document.createElement("option");
       opt.textContent = c;
@@ -831,7 +837,18 @@ function useAsRef(id) {
 function renderSimilar() {
   var biz = document.getElementById("d-biz").value;
   var cnt = document.getElementById("d-cnt").value;
-  var similar = cases.filter(function(c) { return c.bizType === biz || c.country === cnt; }).slice(0, 6);
+  // 관련도 점수: 유형 일치 +2, 국가 일치 +1. '전체'는 해당 조건 무시.
+  // 점수 0(아무것도 안 맞음)은 제외. 점수 높은 순 정렬.
+  var scored = cases.map(function(c) {
+    var s = 0;
+    if (biz !== "전체" && c.bizType === biz) s += 2;
+    if (cnt !== "전체" && c.country === cnt) s += 1;
+    // 둘 다 '전체'면 전부 후보로 (최신순)
+    if (biz === "전체" && cnt === "전체") s = 1;
+    return { c: c, score: s };
+  }).filter(function(x){ return x.score > 0; });
+  scored.sort(function(a, b){ return b.score - a.score; });
+  var similar = scored.slice(0, 6).map(function(x){ return x.c; });
   document.getElementById("similar-count").textContent = similar.length;
   document.getElementById("similar-tags").innerHTML =
     "<span class='tag'>" + esc(biz) + "</span><span class='tag' style='margin-left:4px'>" + esc(cnt) + "</span>";
@@ -1185,6 +1202,8 @@ async function saveCase() {
   var name = document.getElementById("d-name").value.trim();
   var opinion = document.getElementById("d-opinion").value.trim();
   if (!name) { flash("저장하려면 ① 기본 정보의 사업명을 입력하세요", "warn"); document.getElementById("d-name").focus(); return; }
+  if (document.getElementById("d-biz").value === "전체") { flash("사업유형을 선택하세요 (전체 불가)", "warn"); document.getElementById("d-biz").focus(); return; }
+  if (document.getElementById("d-cnt").value === "전체") { flash("국가/법인을 선택하세요 (전체 불가)", "warn"); document.getElementById("d-cnt").focus(); return; }
   if (!opinion) { flash("검토의견을 작성해주세요", "warn"); return; }
   var nc = {
     date: new Date().toLocaleDateString("ko-KR"),
@@ -1508,8 +1527,8 @@ function setRole(role) {
   var aiCard = document.getElementById("ai-draft-card");
   if (aiCard) aiCard.style.display = isLead ? "none" : "block";
 
-  // ④ AI 최종본 생성 카드: 실무자만 (팀장은 직접 작성이 주)
-  document.getElementById("final-card").style.display = isLead ? "none" : "block";
+  // ④ AI 최종본 생성 카드: 사용 안 함 (실무자는 작성+점검, 팀장은 직접 다듬기)
+  document.getElementById("final-card").style.display = "none";
 
   // ③ 검토의견: 팀장 모드면 좌측 실무자초안 참고패널 + 편집라벨 표시
   document.getElementById("staff-draft-ref").style.display = isLead ? "block" : "none";
@@ -1529,6 +1548,8 @@ async function submitForReview() {
   var name = document.getElementById("d-name").value.trim();
   var opinion = document.getElementById("d-opinion").value.trim();
   if (!name) { flash("① 기본 정보의 사업명을 입력하세요", "warn"); document.getElementById("d-name").focus(); return; }
+  if (document.getElementById("d-biz").value === "전체") { flash("사업유형을 선택하세요 (전체 불가)", "warn"); document.getElementById("d-biz").focus(); return; }
+  if (document.getElementById("d-cnt").value === "전체") { flash("국가/법인을 선택하세요 (전체 불가)", "warn"); document.getElementById("d-cnt").focus(); return; }
   if (!opinion) { flash("검토의견 초안을 작성하세요", "warn"); return; }
   var baseResult = document.getElementById("d-result").value;
   var nc = {
