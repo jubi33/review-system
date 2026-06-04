@@ -201,8 +201,13 @@ button:hover{opacity:.75}
       <div>
         <!-- 기본 정보 -->
         <div class="card">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:12px">
+            <span style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">1</span>
+            <span style="font-size:13px;font-weight:700;color:var(--t1)">기본 정보</span>
+            <span style="font-size:12px;color:var(--t2)">유사사례 검색의 기준이자, 저장 시 사업명으로 함께 사용됩니다</span>
+          </div>
           <div class="grid4">
-            <div><div class="label">사업명</div><input id="d-name" placeholder="사업명"></div>
+            <div><div class="label">사업명 <span style="font-weight:400;color:var(--t3);font-size:10px">검색·저장 공용</span></div><input id="d-name" placeholder="예: Martha Fields PV+BESS"></div>
             <div><div class="label">사업유형</div><select id="d-biz" onchange="renderSimilar();clearMissing()"></select></div>
             <div><div class="label">국가/법인</div><select id="d-cnt" onchange="renderSimilar();clearMissing()"></select></div>
             <div><div class="label">결론</div><select id="d-result"></select></div>
@@ -210,7 +215,11 @@ button:hover{opacity:.75}
         </div>
         <!-- AI 초안 -->
         <div class="card">
-          <div style="margin-bottom:10px"><span style="font-size:13px;font-weight:600;color:var(--t1)">품의서 붙여넣기</span><span style="font-size:12px;color:var(--t2);margin-left:8px">→ AI 초안 생성 &nbsp;|&nbsp; 직접 작성 시 생략 가능 &nbsp;|&nbsp; <a href="https://hcom.cleverse.co/approval/wlT1M05" target="_blank" style="color:#FF6600;text-decoration:none;font-weight:600">Cleverse ↗</a></span></div>
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+            <span style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">2</span>
+            <span style="font-size:13px;font-weight:700;color:var(--t1)">품의서 입력 → AI 초안 생성</span>
+          </div>
+          <div style="margin-bottom:10px;padding-left:31px"><span style="font-size:12px;color:var(--t2)">품의서를 붙여넣거나 파일을 업로드한 뒤 AI 초안을 생성하세요 &nbsp;|&nbsp; 직접 작성 시 생략 가능 &nbsp;|&nbsp; <a href="https://hcom.cleverse.co/approval/wlT1M05" target="_blank" style="color:#FF6600;text-decoration:none;font-weight:600">Cleverse ↗</a></span></div>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
             <input type="file" id="d-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" style="display:none" onchange="extractFile(this)">
             <button type="button" onclick="document.getElementById('d-file').click()"
@@ -224,9 +233,12 @@ button:hover{opacity:.75}
         </div>
         <!-- 검토의견 -->
         <div class="card" id="opinion-card">
-          <div style="margin-bottom:10px">
-            <span style="font-size:13px;font-weight:600;color:var(--t1)">검토의견 작성</span>
-            <span style="font-size:12px;color:var(--t2);margin-left:8px">실무자 초안 또는 최종 검토의견 — AI 초안 생성 후 자동 입력</span>
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+            <span style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">3</span>
+            <span style="font-size:13px;font-weight:700;color:var(--t1)">검토의견 작성</span>
+          </div>
+          <div style="margin-bottom:10px;padding-left:31px">
+            <span style="font-size:12px;color:var(--t2)">실무자 초안 또는 최종 검토의견 — AI 초안 생성 후 자동 입력됩니다 · 작성 후 보완·누락 점검 → 저장</span>
           </div>
           <textarea id="d-opinion" id2="d-draft-raw" placeholder="검토의견을 작성하거나 AI 초안을 생성하세요..." style="height:260px;resize:vertical;line-height:1.75;margin-bottom:10px" oninput="clearMissing();clearStyle()"></textarea>
           <div id="style-result" style="margin-bottom:6px"></div>
@@ -238,9 +250,33 @@ button:hover{opacity:.75}
             <button id="chk-btn" class="btn-check" style="padding:10px" onclick="checkMissing()">누락 항목 확인</button>
           </div>
           <div id="missing-result"></div>
-          <div style="display:flex;gap:8px;margin-top:12px">
-            <button style="flex:1;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="saveCase()">저장</button>
-            <button style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyOpinion()">복사</button>
+        </div>
+        <!-- 최종 검토의견 -->
+        <div class="card" id="final-card">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:6px">
+            <span style="flex:none;width:22px;height:22px;border-radius:50%;background:#FF6600;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">4</span>
+            <span style="font-size:13px;font-weight:700;color:var(--t1)">최종 검토의견</span>
+          </div>
+          <div style="margin-bottom:10px;padding-left:31px">
+            <span style="font-size:12px;color:var(--t2)">위 검토의견에 보완·누락 점검 결과를 반영한 완성본을 생성합니다 · 점검을 먼저 실행하면 더 정확합니다</span>
+          </div>
+          <button id="final-btn" class="btn-ai" style="width:100%;padding:11px;margin-bottom:12px" onclick="genFinal()">보완·누락 반영 → 최종본 생성</button>
+          <div id="final-preview" style="display:none">
+            <div style="border:1px solid #FF6600;border-radius:8px;overflow:hidden">
+              <div style="padding:10px 14px;background:rgba(255,102,0,.08);border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:8px">
+                <span style="width:6px;height:6px;border-radius:50%;background:#FF6600;display:inline-block"></span>
+                <span style="font-size:12px;font-weight:700;color:#FF9A3C">최종 도출물</span>
+                <span id="final-meta" style="font-size:11px;color:var(--t3);margin-left:auto"></span>
+              </div>
+              <div id="final-text" style="padding:16px 18px;font-size:13.5px;line-height:1.8;color:var(--t1);white-space:pre-wrap"></div>
+            </div>
+            <div style="margin-top:8px">
+              <button style="width:100%;padding:8px;background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer" onclick="applyFinalToOpinion()">↑ 검토의견란(③)에 반영</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px;border-top:1px solid var(--b1);padding-top:14px">
+            <button style="flex:1;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="saveFinal()">저장</button>
+            <button style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyFinalOrOpinion()">복사</button>
           </div>
         </div>
       </div>
@@ -1166,7 +1202,7 @@ function clearMissing() {
 async function saveCase() {
   var name = document.getElementById("d-name").value.trim();
   var opinion = document.getElementById("d-opinion").value.trim();
-  if (!name) { flash("사업명을 입력해주세요", "warn"); return; }
+  if (!name) { flash("저장하려면 ① 기본 정보의 사업명을 입력하세요", "warn"); document.getElementById("d-name").focus(); return; }
   if (!opinion) { flash("검토의견을 작성해주세요", "warn"); return; }
   var nc = {
     date: new Date().toLocaleDateString("ko-KR"),
@@ -1188,6 +1224,8 @@ async function saveCase() {
       document.getElementById("d-raw").value = "";
       document.getElementById("d-opinion").value = "";
       clearMissing(); clearStyle();
+      var fp = document.getElementById("final-preview"); if (fp) fp.style.display = "none";
+      var ft = document.getElementById("final-text"); if (ft) ft.textContent = "";
       await loadData(); renderSearch(); renderSimilar();
     } else { flash("저장 실패", "err"); }
   } catch(e) { flash("저장 오류: " + e.message, "err"); }
@@ -1440,6 +1478,101 @@ document.addEventListener("DOMContentLoaded", async function() {
   renderSearch();
   renderSimilar();
 });
+</script>
+<script>
+// ── ④ 최종 검토의견 생성 (보완·누락 반영) ─────────────────────────
+async function genFinal() {
+  if (typeof llmReady === "function" && !llmReady()) return;
+  var opinion = document.getElementById("d-opinion").value.trim();
+  if (!opinion) { flash("먼저 검토의견을 작성하거나 AI 초안을 생성하세요", "warn"); return; }
+
+  var btn = document.getElementById("final-btn");
+  btn.textContent = "최종본 생성 중..."; btn.disabled = true;
+
+  // 보완 지적(style) + 누락 항목(missing) 수집
+  var styleItems = window._styleSuggestions || [];
+  var missItems = (typeof missingItems !== "undefined" && missingItems) ? missingItems : [];
+
+  var fixText = "";
+  if (styleItems.length) {
+    fixText += "[보완 필요 사항]\n" + styleItems.map(function(m, i) {
+      return (i+1) + ". (" + (m.category||"") + ") " + (m.issue||"") + " → " + (m.suggestion||"");
+    }).join("\n") + "\n\n";
+  }
+  if (missItems.length) {
+    fixText += "[누락 항목]\n" + missItems.map(function(m, i) {
+      var t = typeof m === "string" ? m : (m.item || m.issue || JSON.stringify(m));
+      return (i+1) + ". " + t;
+    }).join("\n") + "\n\n";
+  }
+  if (!fixText) fixText = "(점검 결과 없음 — 검토의견 자체를 다듬어 완성본으로 정리)\n\n";
+
+  var name = (document.getElementById("d-name")||{}).value || "";
+  var biz = (document.getElementById("d-biz")||{}).value || "";
+  var cnt = (document.getElementById("d-cnt")||{}).value || "";
+
+  try {
+    var prompt =
+      "당신은 에너지 개발 회사의 검토의견 작성 전문가입니다.\n" +
+      "아래 검토의견 초안에, 점검 결과(보완 필요 사항·누락 항목)를 빠짐없이 반영하여 최종 완성본을 작성하세요.\n\n" +
+      "[현재 검토의견 초안]\n" + opinion + "\n\n" +
+      "[반영할 점검 결과]\n" + fixText +
+      "[사업 정보] 사업명: " + (name||"미입력") + " / 유형: " + biz + " / 국가·법인: " + cnt + "\n\n" +
+      "[작성 지침]\n" +
+      "- 초안의 문체·구조·어조를 그대로 유지하면서, 위 점검 결과를 자연스럽게 녹여 넣으세요.\n" +
+      "- 누락 항목은 적절한 위치에 추가하고, 보완 지적은 해당 부분을 수정·보강하세요.\n" +
+      "- 구체적 수치는 초안의 값을 그대로 유지하고 임의로 지어내지 마세요.\n" +
+      "- 점검 결과가 없으면 초안을 매끄럽게 다듬어 완성도만 높이세요.\n" +
+      "- 완성된 검토의견 본문만 출력하고, 다른 설명·머리말은 붙이지 마세요.\n" +
+      "- 한국어로 작성하세요.";
+    var text = await callLLM(prompt, 1800) || "";
+    if (!text.trim()) throw new Error("빈 응답");
+
+    document.getElementById("final-text").textContent = text.trim();
+    var metaParts = [];
+    if (styleItems.length) metaParts.push("보완 " + styleItems.length + "건");
+    if (missItems.length) metaParts.push("누락 " + missItems.length + "건");
+    document.getElementById("final-meta").textContent = metaParts.length ? metaParts.join(" · ") + " 반영" : "초안 정리";
+    document.getElementById("final-preview").style.display = "block";
+    document.getElementById("final-card").scrollIntoView({behavior:"smooth", block:"start"});
+    flash("최종 검토의견 생성 완료");
+  } catch(e) {
+    flash("최종본 생성 오류: " + e.message, "err");
+  }
+  btn.textContent = "보완·누락 반영 → 최종본 생성"; btn.disabled = false;
+}
+function copyFinal() {
+  var t = document.getElementById("final-text").textContent || "";
+  if (!t) { flash("복사할 최종본이 없습니다", "warn"); return; }
+  navigator.clipboard.writeText(t).then(function(){ flash("최종본 복사됨"); });
+}
+// ④ 통합 복사: 최종본이 있으면 최종본을, 없으면 ③ 검토의견을 복사
+function copyFinalOrOpinion() {
+  var fin = document.getElementById("final-text").textContent || "";
+  var op = document.getElementById("d-opinion").value || "";
+  var t = fin.trim() ? fin : op;
+  if (!t.trim()) { flash("복사할 내용이 없습니다", "warn"); return; }
+  navigator.clipboard.writeText(t).then(function(){
+    flash(fin.trim() ? "최종본 복사됨" : "검토의견 복사됨");
+  });
+}
+// ④ 통합 저장: 최종본이 있으면 검토의견란에 반영 후 저장, 없으면 ③ 검토의견 그대로 저장
+function saveFinal() {
+  var fin = document.getElementById("final-text").textContent || "";
+  if (fin.trim()) {
+    document.getElementById("d-opinion").value = fin;  // 최종본을 저장 대상으로
+  }
+  saveCase();
+}
+function applyFinalToOpinion() {
+  var t = document.getElementById("final-text").textContent || "";
+  if (!t) { flash("반영할 최종본이 없습니다", "warn"); return; }
+  document.getElementById("d-opinion").value = t;
+  if (typeof clearMissing === "function") clearMissing();
+  if (typeof clearStyle === "function") clearStyle();
+  document.getElementById("opinion-card").scrollIntoView({behavior:"smooth"});
+  flash("검토의견란에 반영됨");
+}
 </script>
 <script>
 // ── 품의서 파일 업로드 → 텍스트 자동 추출 ──────────────────────────
