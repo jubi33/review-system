@@ -1386,7 +1386,11 @@ async function commitEdit(id) {
 async function deleteCase(id) {
   if (!confirm("삭제하시겠습니까?")) return;
   try {
-    await SB.delete(id);
+    var res = await fetch(SB_URL + "/rest/v1/cases?id=eq." + id, {
+      method: "DELETE",
+      headers: {"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY}
+    });
+    if (!res.ok) throw new Error("응답 " + res.status);
     await loadData();
     renderManage();
     flash("삭제됨");
