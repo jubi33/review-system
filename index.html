@@ -114,12 +114,12 @@ button:hover{opacity:.75}
 
     <div class="label">AI 엔진 선택</div>
     <select id="llm-mode-input" style="margin-bottom:16px" onchange="toggleLlmMode()">
-      <option value="ollama">사내 Ollama 서버</option>
       <option value="anthropic">Anthropic API (Claude)</option>
+      <option value="ollama">사내 Ollama 서버</option>
     </select>
 
     <!-- Anthropic 설정 -->
-    <div id="anthropic-settings" style="display:none;border-top:1px solid var(--b1);padding-top:16px;margin-bottom:4px">
+    <div id="anthropic-settings" style="display:block;border-top:1px solid var(--b1);padding-top:16px;margin-bottom:4px">
       <div class="label">Anthropic API 키</div>
       <input type="password" id="anthropic-key-input" placeholder="sk-ant-..." style="margin-bottom:8px" autocomplete="off">
       <div style="font-size:11px;color:var(--t3);margin-bottom:14px">이 브라우저에만 저장됨 · 코드/서버에 전송되지 않음</div>
@@ -133,7 +133,7 @@ button:hover{opacity:.75}
     </div>
 
     <!-- Ollama 설정 -->
-    <div id="ollama-settings">
+    <div id="ollama-settings" style="display:none">
     <div class="label">Ollama 엔드포인트 URL</div>
     <input type="text" id="ollama-url-input" placeholder="http://10.0.0.50:11434" style="margin-bottom:8px">
     <div style="font-size:11px;color:var(--t3);margin-bottom:14px">사내망 Ollama 서버 주소 · 이 브라우저에만 저장됨</div>
@@ -562,7 +562,7 @@ function toggleLlmMode() {
   document.getElementById("ollama-settings").style.display = (mode === "anthropic") ? "none" : "block";
 }
 function openModal() {
-  document.getElementById("llm-mode-input").value = settings.llmMode || "ollama";
+  document.getElementById("llm-mode-input").value = settings.llmMode || "anthropic";
   document.getElementById("ollama-url-input").value = settings.ollamaUrl || "";
   document.getElementById("ollama-model-input").value = settings.ollamaModel || "qwen2.5:14b";
   document.getElementById("ollama-embed-input").value = settings.ollamaEmbed || "";
@@ -586,18 +586,19 @@ function saveSettings() {
 // ── LLM 공통 호출 (Anthropic API 또는 사내 Ollama) ──────────────
 // 설정이 갖춰졌는지 검사 (모드별). 안 됐으면 false 반환 + 설정창 안내
 function llmReady() {
-  if (settings.llmMode === "anthropic") {
-    if (!settings.anthropicKey) { flash("Anthropic API 키를 설정해주세요", "warn"); openModal(); return false; }
+  if (settings.llmMode === "ollama") {
+    if (!settings.ollamaUrl) { flash("사내 LLM 서버를 설정해주세요", "warn"); openModal(); return false; }
     return true;
   }
-  if (!settings.ollamaUrl) { flash("사내 LLM 서버를 설정해주세요", "warn"); openModal(); return false; }
+  // 기본: Anthropic API
+  if (!settings.anthropicKey) { flash("Anthropic API 키를 설정해주세요", "warn"); openModal(); return false; }
   return true;
 }
 async function callLLM(prompt, maxTokens) {
-  if (settings.llmMode === "anthropic") {
-    return await callAnthropic(prompt, maxTokens);
+  if (settings.llmMode === "ollama") {
+    return await callOllama(prompt, maxTokens);
   }
-  return await callOllama(prompt, maxTokens);
+  return await callAnthropic(prompt, maxTokens);
 }
 
 // Anthropic API (Claude) — 키는 브라우저에만 저장, 코드/GitHub에 없음
