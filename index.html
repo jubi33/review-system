@@ -42,7 +42,7 @@ button:hover{opacity:.75}
 .hidden{display:none}
 .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .grid-search{display:flex;flex-direction:column;gap:6px}
-.grid-draft{display:grid;grid-template-columns:1fr 400px;gap:16px;align-items:start}
+.grid-draft{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}
 /* header */
 #header{background:var(--s1);border-bottom:1px solid var(--b1);
   position:sticky;top:0;z-index:100;padding:0 20px}
@@ -916,39 +916,38 @@ function renderSimilar() {
   }
   list.innerHTML = similar.map(function(c, i) {
     var hasDraft = c.draftRaw && c.draftRaw.trim();
-    return "<div style='margin-bottom:14px;padding-bottom:14px;" + (i < similar.length-1 ? "border-bottom:1px solid var(--b1)" : "") + "'>" +
-      // 사업명 + 결론
-      "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px'>" +
-        "<div style='font-size:12px;font-weight:600;flex:1;padding-right:8px;line-height:1.4;color:var(--t1)'>" + esc(c.name) + "</div>" +
-        resultDot(c.result) +
+    return "<div style='display:flex;gap:14px;align-items:stretch;padding:13px 6px;" + (i < similar.length-1 ? "border-bottom:1px solid var(--b1)" : "") + "'>" +
+      // 좌: 구분 · 사업명 · 결론 · 가져오기
+      "<div style='flex:none;width:210px;display:flex;flex-direction:column;gap:6px'>" +
+        "<div style='display:flex;justify-content:space-between;align-items:flex-start'>" +
+          "<div style='font-size:13px;font-weight:700;flex:1;padding-right:6px;line-height:1.4;color:var(--t1)'>" + esc(c.name) + "</div>" +
+          resultDot(c.result) +
+        "</div>" +
+        "<div style='display:flex;gap:4px;flex-wrap:wrap;align-items:center'>" +
+          "<span class='tag'>" + esc(c.bizType) + "</span>" +
+          "<span class='tag'>" + esc(c.country) + "</span>" +
+        "</div>" +
+        "<div style='font-size:10px;color:var(--t3)'>" + esc(c.date||"") + "</div>" +
+        "<button id='sim-get-" + c.id + "' onclick='simGet(this)' data-id='" + c.id + "'" +
+          " style='margin-top:auto;padding:7px;background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer'>작성란에 가져오기</button>" +
       "</div>" +
-      // 태그
-      "<div style='display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;align-items:center'>" +
-        "<span class='tag'>" + esc(c.bizType) + "</span>" +
-        "<span class='tag'>" + esc(c.country) + "</span>" +
-        "<span style='font-size:10px;color:var(--t3)'>" + esc(c.date||"") + "</span>" +
+      // 우: 탭 버튼 + 내용
+      "<div style='flex:1;min-width:0;display:flex;flex-direction:column;gap:8px'>" +
+        "<div style='display:flex;gap:0;border:1px solid var(--b2);border-radius:7px;overflow:hidden;width:fit-content'>" +
+          (hasDraft ?
+            "<button id='stab-d-" + c.id + "' onclick='simTab(this)' data-id='" + c.id + "' data-tab='draft'" +
+              " style='padding:7px 18px;font-size:12px;font-weight:700;border:none;border-right:1px solid var(--b2);cursor:pointer;background:#FF6600;color:#fff;transition:all .15s'>실무자 초안</button>"
+          : "") +
+          "<button id='stab-o-" + c.id + "' onclick='simTab(this)' data-id='" + c.id + "' data-tab='opinion'" +
+            " style='padding:7px 18px;font-size:12px;font-weight:700;border:none;cursor:pointer;" +
+            (hasDraft ? "background:#1A1A1A;color:#555" : "background:#FF6600;color:#fff") +
+            ";transition:all .15s'>검토의견</button>" +
+        "</div>" +
+        "<div id='sim-content-" + c.id + "' style='font-size:13px;color:#eee;white-space:pre-wrap;line-height:1.7;flex:1;" +
+          "background:var(--s3);border:1px solid var(--b2);border-radius:7px;padding:12px 14px;max-height:240px;overflow:auto'>" +
+          esc(hasDraft ? c.draftRaw : (c.opinion||"")) +
+        "</div>" +
       "</div>" +
-      // 탭 버튼
-      "<div style='display:flex;gap:0;margin-bottom:10px;border:1px solid var(--b2);border-radius:7px;overflow:hidden'>" +
-        (hasDraft ?
-          "<button id='stab-d-" + c.id + "' onclick='simTab(this)' data-id='" + c.id + "' data-tab='draft'" +
-            " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;border-right:1px solid var(--b2);cursor:pointer;background:#FF6600;color:#fff;transition:all .15s'>실무자 초안</button>"
-        : "") +
-        "<button id='stab-o-" + c.id + "' onclick='simTab(this)' data-id='" + c.id + "' data-tab='opinion'" +
-          " style='flex:1;padding:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;" +
-          (hasDraft ? "background:#1A1A1A;color:#555" : "background:#FF6600;color:#fff") +
-          ";transition:all .15s'>" + "검토의견" + "</button>" +
-      "</div>" +
-      // 내용 표시 영역
-      "<div id='sim-content-" + c.id + "' style='font-size:13px;color:#eee;white-space:pre-wrap;line-height:1.75;" +
-        "background:var(--s3);border:1px solid var(--b2);border-radius:7px;padding:12px 14px;max-height:180px;overflow:auto'>" +
-        esc(hasDraft ? c.draftRaw : (c.opinion||"")) +
-      "</div>" +
-      // 가져오기 버튼
-      "<button id='sim-get-" + c.id + "' onclick='simGet(this)' data-id='" + c.id + "'" +
-        " style='margin-top:8px;width:100%;padding:7px;background:transparent;color:var(--t2);border:1px solid var(--b2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer'>" +
-        "작성란에 가져오기" +
-      "</button>" +
     "</div>";
   }).join("");
 
