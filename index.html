@@ -252,14 +252,16 @@ button:hover{opacity:.75}
           </div>
           <div style="margin-bottom:10px;padding-left:31px"><span style="font-size:12px;color:var(--t2)">품의서를 붙여넣거나 파일을 업로드한 뒤 AI 초안을 생성하세요 &nbsp;|&nbsp; 직접 작성 시 생략 가능 &nbsp;|&nbsp; <a href="https://hcom.cleverse.co/approval/wlT1M05" target="_blank" style="color:#FF6600;text-decoration:none;font-weight:600">Cleverse ↗</a></span></div>
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-            <input type="file" id="d-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" style="display:none" onchange="extractFile(this)">
+            <input type="file" id="d-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple style="display:none" onchange="extractFile(this)">
             <button type="button" onclick="document.getElementById('d-file').click()"
               style="background:#fff;color:#FF6600;border:1px solid #FF6600;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:700;white-space:nowrap">
               📎 파일 업로드</button>
             <span style="font-size:12px;color:var(--t2)">PDF · Word · Excel · TXT 지원 (텍스트 자동 추출)</span>
             <span id="d-file-status" style="font-size:12px;color:#FF9A3C"></span>
           </div>
-          <textarea id="d-raw" placeholder="품의서 내용을 붙여넣거나 파일을 업로드하세요..." style="height:180px;resize:vertical;margin-bottom:10px"></textarea>
+          <textarea id="d-raw" placeholder="품의서 내용을 붙여넣으세요 (파일 업로드 시 본문 아래에 '참고 첨부'로 추가됩니다)" style="height:180px;resize:vertical;margin-bottom:10px"></textarea>
+          <div style="font-size:12px;font-weight:700;color:var(--t2);margin:2px 0 5px">추가 확인사항 · 검토자 메모 <span style="font-weight:400;color:var(--t3)">(품의·첨부에 없지만 검토에 반영할 사실 — 선택)</span></div>
+          <textarea id="d-extra" placeholder="예: LGIA suspension 만료일, 구두 협의 내용, 내부 정책·전제 등 검토 시 함께 고려할 정보" style="height:90px;resize:vertical;margin-bottom:10px"></textarea>
           <button id="gen-btn" class="btn-ai" style="width:100%;padding:11px" onclick="genDraft()">AI 초안 생성</button>
         </div>
         <!-- 검토의견 -->
@@ -1146,6 +1148,7 @@ function appendSuggestion(i) {
 async function genDraft() {
   if (!llmReady()) return;
   var raw = document.getElementById("d-raw").value;
+  var extra = (document.getElementById("d-extra")||{value:""}).value.trim();
   if (!raw.trim()) { flash("품의서 내용을 입력해주세요", "warn"); return; }
   var biz = document.getElementById("d-biz").value;
   var cnt = document.getElementById("d-cnt").value;
@@ -1175,6 +1178,7 @@ async function genDraft() {
       "아래 사내 과거 " + DOC + " 예시들의 문체, 구조, 서술 방식, 표현 톤을 면밀히 학습하여, 같은 스타일로 신규 품의서에 대한 " + DOC + "을(를) 작성하세요.\n\n" +
       "[학습할 과거 " + DOC + " 예시]\n" + caseSum + "\n\n" +
       "[신규 검토 대상 품의서]\n" + raw + "\n\n" +
+      (extra ? "[검토자 추가 확인사항 — 검토자가 별도로 확인·제공한 사실]\n" + extra + "\n\n" : "") +
       "[사업 정보]\n사업유형: " + biz + " / 국가·법인: " + cnt + " / 사업명: " + (name||"미입력") + "\n\n" +
       "[작성 지침]\n" +
       (hasExamples
@@ -1183,6 +1187,8 @@ async function genDraft() {
           "- 정해진 고정 양식을 강요하지 말고, 과거 예시들이 보여주는 실제 양식을 모방하세요.\n" +
           "- 단, 과거 예시는 문체·구조 학습용일 뿐입니다. 예시에 담긴 사실관계·수치·고유명사·배경을 현재 품의서로 전이하지 마세요.\n"
         : "- 참고할 과거 예시가 없으므로, 품의 내용을 체계적으로 정리한 일반적 구조(개요 → 핵심 내용 정리 → 검토 관점)로 작성하세요.\n") +
+      "- 품의서 본문이 핵심 근거입니다. '【참고 첨부: …】' 이후 텍스트는 본문을 보완하는 참고자료이므로, 본문과 충돌하면 본문을 우선하고, 첨부에만 있는 내용을 인용할 때는 그 출처가 첨부임을 분명히 하여 신중히 다루세요.\n" +
+      "- '검토자 추가 확인사항'이 제공된 경우, 이는 검토자가 직접 확인·제공한 신뢰 가능한 정보이므로 검토 판단에 적극 반영하세요(이 정보는 〔확인 필요〕로 표시하지 않아도 됩니다).\n" +
       "- 품의서(및 함께 제공된 첨부 텍스트)에 명시된 사실만 사용하세요. 본문에 없는 배경·수치·이력·고유명사·경위는 절대 추정하거나 창작하지 마세요.\n" +
       "- 판단에 필요하지만 품의서에 없는 정보는 임의로 채우지 말고, 해당 자리에 〔확인 필요〕라고 명확히 표시하세요.\n" +
       "- 품의서의 구체적 수치(금액, 단가, 일정, 비율 등)를 정확히 인용하여 근거를 제시하세요.\n" +
@@ -1830,37 +1836,40 @@ function dFileStatus(msg, color) {
   if (el) { el.textContent = msg || ""; el.style.color = color || "#FF9A3C"; }
 }
 async function extractFile(input) {
-  var f = input.files && input.files[0];
-  if (!f) return;
-  var name = f.name.toLowerCase();
-  dFileStatus("⏳ " + f.name + " 추출 중...", "#FF9A3C");
-  try {
-    var text = "";
-    if (name.endsWith(".pdf")) {
-      text = await extractPdf(f);
-    } else if (name.endsWith(".docx")) {
-      text = await extractDocx(f);
-    } else if (name.endsWith(".doc")) {
-      throw new Error("구형 .doc는 미지원입니다. .docx로 저장 후 업로드하거나 내용을 직접 붙여넣어 주세요.");
-    } else if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv")) {
-      text = await extractExcel(f);
-    } else if (name.endsWith(".txt")) {
-      text = await f.text();
-    } else {
-      throw new Error("지원하지 않는 형식입니다.");
+  var files = input.files ? Array.prototype.slice.call(input.files) : [];
+  if (!files.length) return;
+  for (var fi = 0; fi < files.length; fi++) {
+    var f = files[fi];
+    var name = f.name.toLowerCase();
+    dFileStatus("⏳ " + f.name + " 추출 중...", "#E8740C");
+    try {
+      var text = "";
+      if (name.endsWith(".pdf")) {
+        text = await extractPdf(f);
+      } else if (name.endsWith(".docx")) {
+        text = await extractDocx(f);
+      } else if (name.endsWith(".doc")) {
+        throw new Error("구형 .doc는 미지원입니다. .docx로 저장 후 업로드하거나 내용을 직접 붙여넣어 주세요.");
+      } else if (name.endsWith(".xlsx") || name.endsWith(".xls") || name.endsWith(".csv")) {
+        text = await extractExcel(f);
+      } else if (name.endsWith(".txt")) {
+        text = await f.text();
+      } else {
+        throw new Error("지원하지 않는 형식입니다.");
+      }
+      text = (text || "").trim();
+      if (!text) throw new Error("추출된 텍스트가 없습니다. (이미지 기반 PDF일 수 있음)");
+      var ta = document.getElementById("d-raw");
+      var sep = "\n\n━━━━━━ 【참고 첨부: " + f.name + "】 ━━━━━━\n";
+      ta.value = ta.value.trim() ? (ta.value.trim() + sep + text) : text;
+      dFileStatus("✓ " + f.name + " 참고첨부로 추가됨 (" + text.length.toLocaleString() + "자)", "#16A34A");
+      if (typeof flash === "function") flash("첨부 '" + f.name + "' 를 품의서 아래에 추가했습니다", "ok");
+    } catch (e) {
+      dFileStatus("✕ " + f.name + ": " + e.message, "#DC2626");
+      if (typeof flash === "function") flash("추출 실패: " + e.message, "err");
     }
-    text = (text || "").trim();
-    if (!text) throw new Error("추출된 텍스트가 없습니다. (이미지 기반 PDF일 수 있음)");
-    var ta = document.getElementById("d-raw");
-    ta.value = text;
-    dFileStatus("✓ " + f.name + " 적용됨 (" + text.length.toLocaleString() + "자)", "#3CFF8F");
-    if (typeof flash === "function") flash("파일 텍스트를 품의서 칸에 넣었습니다", "ok");
-  } catch (e) {
-    dFileStatus("✕ " + e.message, "#FF4747");
-    if (typeof flash === "function") flash("추출 실패: " + e.message, "err");
-  } finally {
-    input.value = "";
   }
+  input.value = "";
 }
 function extractPdf(f) {
   return new Promise(function (resolve, reject) {
