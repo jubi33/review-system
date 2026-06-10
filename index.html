@@ -713,8 +713,17 @@ function cosineSim(a, b) {
 }
 
 // 임베딩 우선, 실패 시 키워드 기반 fallback
-async function findSimilarCases(queryText, biz, cnt, topN) {
-  topN = topN || 5;
+async function findSimilarCases(queryText, biz, cnt, maxN) {
+  maxN = maxN || 8;  // 상한 (이 이상은 토큰·희석 부담)
+  // 점수 분포 기반 적응형 선택: 최상위에 충분히 가까운 사례만 채택 (최소 2건, 최대 maxN)
+  function adaptive(scored, gap, minScore) {
+    scored.sort(function(a, b){ return b.score - a.score; });
+    if (!scored.length) return [];
+    var top = scored[0].score;
+    var picked = scored.filter(function(s){ return s.score >= Math.max(top - gap, minScore); });
+    if (picked.length < 2) picked = scored.slice(0, Math.min(2, scored.length));
+    return picked.slice(0, maxN).map(function(s){ return s.c; });
+  }
   var em = settings.ollamaEmbed;
   if (em) {
     var qv = await embedText(queryText);
@@ -727,20 +736,35 @@ async function findSimilarCases(queryText, biz, cnt, topN) {
         c._embedding = cv; // 캐시
         scored.push({ c: c, score: cosineSim(qv, cv) });
       }
-      scored.sort(function(a, b){ return b.score - a.score; });
-      return scored.slice(0, topN).map(function(s){ return s.c; });
+      // 코사인 유사도: 최상위에서 0.08 이내 + 0.3 이상만
+      return adaptive(scored, 0.08, 0.3);
     }
   }
-  // fallback: 사업유형/국가 관련도 순 (유형+2, 국가+1, 무관 제외)
+  // fallback: 사업유형/국가는 기존처럼 필터로 유지하고, 그 안에서 본문 키워드 겹침으로 재정렬
+  var STOP = {"그리고":1,"또는":1,"위한":1,"관련":1,"대한":1,"통해":1,"있는":1,"있음":1,"the":1,"and":1,"for":1,"with":1,"this":1,"that":1};
+  var qTokens = (queryText || "").toLowerCase().match(/[a-z0-9]{3,}|[가-힣]{2,}/g) || [];
+  var qSet = {};
+  qTokens.forEach(function(t){ if(!STOP[t]) qSet[t] = 1; });
+  var qKeys = Object.keys(qSet);
+  var hasCatFilter = (biz && biz !== "전체") || (cnt && cnt !== "전체");
   var sc = cases.map(function(c) {
-    var s = 0;
-    if (biz && biz !== "전체" && c.bizType === biz) s += 2;
-    if (cnt && cnt !== "전체" && c.country === cnt) s += 1;
-    if ((!biz || biz === "전체") && (!cnt || cnt === "전체")) s = 1;
+    var cat = 0;
+    if (biz && biz !== "전체" && c.bizType === biz) cat += 2;
+    if (cnt && cnt !== "전체" && c.country === cnt) cat += 1;
+    // 카테고리가 선택됐는데 하나도 안 맞으면 제외 (기존 하드 필터 동작 유지)
+    if (hasCatFilter && cat === 0) return { c: c, score: 0 };
+    var s = hasCatFilter ? cat : 1;  // 카테고리 미선택 시 모두 기본 1점
+    // 같은 후보군 안에서 본문 키워드 겹침으로 가산 (건당 0.5, 최대 +3)
+    if (qKeys.length) {
+      var hay = ((c.name||"") + " " + (c.draftRaw||"") + " " + (c.opinion||"") + " " + (c.issues||"")).toLowerCase();
+      var hit = 0;
+      for (var k = 0; k < qKeys.length; k++) { if (hay.indexOf(qKeys[k]) !== -1) hit++; }
+      s += Math.min(hit * 0.5, 3);
+    }
     return { c: c, score: s };
   }).filter(function(x){ return x.score > 0; });
-  sc.sort(function(a, b){ return b.score - a.score; });
-  return sc.slice(0, topN).map(function(x){ return x.c; });
+  // 최상위 점수에서 1.5점 이내인 사례만 (비슷한 게 많으면 多, 적으면 少 — 자동)
+  return adaptive(sc, 1.5, 0.5);
 }
 
 // ── 탭 전환 ──────────────────────────────────────────────────────
@@ -1182,7 +1206,7 @@ async function genDraft() {
   var DOC = isStaff ? "실무자 초안" : "검토의견";
   var ROLE = isStaff ? "품의 내용을 분석해 윗선 보고용 실무자 초안을 작성하는 담당 실무자" : "검토의견 작성 전문가";
   // RAG: 임베딩 또는 키워드 기반 유사 과거사례 검색
-  var similar = await findSimilarCases(raw, biz, cnt, 3);
+  var similar = await findSimilarCases(raw, biz, cnt);
   var caseSum = similar.length === 0 ? "(저장된 과거 " + DOC + " 없음)" :
     similar.map(function(c, i) {
       var src = isStaff ? (c.draftRaw||c.opinion||"") : (c.opinion||c.draftRaw||"");
