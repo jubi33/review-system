@@ -10,33 +10,33 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0A0A0A;--s1:#111111;--s2:#181818;--s3:#222222;
-  --b1:#252525;--b2:#333333;
-  --t1:#EBEBEB;--t2:#888;--t3:#4A4A4A;
-  --green:#3CFF8F;--orange:#FF9A3C;--red:#FF4747;--mint:#47FFBB;
-  --purple:#A78BFA;--cyan:#22D3EE;
+  --bg:#F4F5F7;--s1:#FFFFFF;--s2:#F7F8FA;--s3:#F4F6F8;
+  --b1:#E6E8EB;--b2:#D2D6DC;
+  --t1:#1B1D21;--t2:#6B7280;--t3:#9AA0A8;
+  --green:#16A34A;--orange:#E8740C;--red:#DC2626;--mint:#0D9488;--blue:#2563EB;
+  --purple:#7C3AED;--cyan:#0891B2;
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;
   background:var(--bg);color:var(--t1);font-size:16px;min-height:100vh;line-height:1.6}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--b2);border-radius:2px}
-#login-overlay{position:fixed;inset:0;background:#0A0A0A;z-index:9999;display:flex;align-items:center;justify-content:center}
-#login-card{background:#111;border:1px solid #333;border-radius:14px;padding:40px;width:380px;max-width:90vw;text-align:center}
+#login-overlay{position:fixed;inset:0;background:#F4F5F7;z-index:9999;display:flex;align-items:center;justify-content:center}
+#login-card{background:#fff;border:1px solid #E6E8EB;border-radius:14px;padding:40px;width:380px;max-width:90vw;text-align:center}
 ::placeholder{color:var(--t2);opacity:1}
 input,select,textarea{font-family:inherit;color:var(--t1);background:var(--s2);
   border:1px solid var(--b1);border-radius:8px;padding:11px 14px;font-size:15px;outline:none;
   box-sizing:border-box;width:100%;transition:border-color .15s}
 input:focus,select:focus,textarea:focus{border-color:#FF6600;outline:none;box-shadow:0 0 0 1px #FF6600}
-select option{background:#1A1A1A}
+select option{background:#fff}
 button{font-family:inherit;cursor:pointer;transition:all .15s}
 button:hover{opacity:.75}
 .card{background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:22px;margin-bottom:14px}
 .tag{font-size:11px;padding:2px 8px;border-radius:3px;background:var(--s2);
   color:var(--t2);border:1px solid var(--b1);white-space:nowrap;display:inline-block}
-.btn-save{background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;
+.btn-save{background:#fff;color:#FF6600;border:1px solid #FF6600;border-radius:8px;
   padding:12px 20px;font-size:15px;font-weight:700}
-.btn-ai{background:#111;color:#AAAAAA;border:1px solid #FF6600;
+.btn-ai{background:#fff;color:#FF6600;border:1px solid #FF6600;
   border-radius:7px;padding:10px 18px;font-size:13px;font-weight:700}
-.btn-check{background:#111;color:#AAAAAA;border:1px solid #FF6600;
+.btn-check{background:#fff;color:#FF6600;border:1px solid #FF6600;
   border-radius:7px;padding:10px 18px;font-size:13px;font-weight:700}
 .btn-out{background:transparent;border-radius:8px;padding:11px 18px;font-size:15px;font-weight:600}
 .hidden{display:none}
@@ -92,12 +92,12 @@ button:hover{opacity:.75}
 <body>
 <div id="login-overlay">
   <div id="login-card">
-    <div style="font-size:24px;font-weight:800;color:#F0F0F0;margin-bottom:8px">
+    <div style="font-size:24px;font-weight:800;color:#1B1D21;margin-bottom:8px">
       <span style="color:#FF6600">●</span> 검토의견 시스템
     </div>
     <div style="font-size:13px;color:#666;margin-bottom:28px">Hanwha Energy</div>
     <input type="password" id="login-input" placeholder="비밀번호"
-      style="width:100%;padding:13px 16px;border-radius:8px;border:1px solid #333;background:#1A1A1A;color:#F0F0F0;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;font-family:inherit;text-align:center"
+      style="width:100%;padding:13px 16px;border-radius:8px;border:1px solid #D2D6DC;background:#fff;color:#1B1D21;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;font-family:inherit;text-align:center"
       onkeydown="if(event.key==='Enter')doLogin()">
     <div id="login-err" style="color:#FF4747;font-size:13px;margin-bottom:10px;display:none">비밀번호가 틀렸습니다</div>
     <button onclick="doLogin()"
@@ -211,12 +211,12 @@ button:hover{opacity:.75}
           <input type="hidden" id="d-cnt" value="전체">
           <input type="hidden" id="d-result" value="승인">
           <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;flex-wrap:wrap">
-            <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:60px;padding-top:7px">사업유형</span>
-            <span id="chip-d-biz" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
-          </div>
-          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;flex-wrap:wrap">
             <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:60px;padding-top:7px">국가/법인</span>
             <span id="chip-d-cnt" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:60px;padding-top:7px">사업유형</span>
+            <span id="chip-d-biz" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
           </div>
           <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;flex-wrap:wrap">
             <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:60px;padding-top:7px">결론</span>
@@ -232,6 +232,10 @@ button:hover{opacity:.75}
                 <div id="similar-tags" style="display:flex;gap:5px"></div>
               </div>
               <span id="similar-count" style="font-size:22px;color:var(--t3);font-weight:300">0</span>
+            </div>
+            <div style="display:flex;gap:14px;padding:8px 16px;border-bottom:1px solid var(--b1);font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.3px">
+              <div style="flex:none;width:210px">구분 · 사업명</div>
+              <div style="flex:1">내용 (실무자 초안 / 검토의견)</div>
             </div>
             <div id="similar-list" style="max-height:400px;overflow-y:auto;padding:12px"></div>
             <div style="border-top:1px solid var(--b1);padding:10px 12px">
@@ -250,7 +254,7 @@ button:hover{opacity:.75}
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
             <input type="file" id="d-file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" style="display:none" onchange="extractFile(this)">
             <button type="button" onclick="document.getElementById('d-file').click()"
-              style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:700;white-space:nowrap">
+              style="background:#fff;color:#FF6600;border:1px solid #FF6600;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:700;white-space:nowrap">
               📎 파일 업로드</button>
             <span style="font-size:12px;color:var(--t2)">PDF · Word · Excel · TXT 지원 (텍스트 자동 추출)</span>
             <span id="d-file-status" style="font-size:12px;color:#FF9A3C"></span>
@@ -278,7 +282,7 @@ button:hover{opacity:.75}
               <div id="check-hint" style="display:none;font-size:11px;color:var(--t3);margin:8px 0 6px">↓ 아래 점검은 위 검토의견(편집칸)을 대상으로 합니다</div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
                 <button id="analyze-btn" onclick="analyzeStyle()"
-                  style="padding:10px;background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:7px;font-size:13px;font-weight:700">
+                  style="padding:10px;background:#fff;color:#FF6600;border:1px solid #FF6600;border-radius:7px;font-size:13px;font-weight:700">
                   보완 필요 사항 확인
                 </button>
                 <button id="chk-btn" class="btn-check" style="padding:10px" onclick="checkMissing()">누락 항목 확인</button>
@@ -294,7 +298,7 @@ button:hover{opacity:.75}
           <div id="lead-submit-wrap" style="display:none;margin-top:14px;border-top:1px solid var(--b1);padding-top:14px">
             <div style="display:flex;gap:8px">
               <button style="flex:1;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="saveFinal()">최종 확정 저장</button>
-              <button style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyFinalOrOpinion()">복사</button>
+              <button style="background:#fff;color:#FF6600;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyFinalOrOpinion()">복사</button>
             </div>
             <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">확정 시 검토 대기 목록에서 사라지고 완료 처리됩니다</div>
           </div>
@@ -324,7 +328,7 @@ button:hover{opacity:.75}
           </div>
           <div style="display:flex;gap:8px;margin-top:14px;border-top:1px solid var(--b1);padding-top:14px">
             <button style="flex:1;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="saveFinal()">저장</button>
-            <button style="background:#111;color:#AAAAAA;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyFinalOrOpinion()">복사</button>
+            <button style="background:#fff;color:#FF6600;border:1px solid #FF6600;border-radius:8px;padding:11px 16px;font-size:15px;font-weight:600;cursor:pointer" onclick="copyFinalOrOpinion()">복사</button>
           </div>
         </div>
       </div>
@@ -840,12 +844,12 @@ function sTab(btn) {
   var dBtn = document.getElementById("stab-d-"+id);
   var oBtn = document.getElementById("stab-o-"+id);
   if(dBtn){
-    dBtn.style.background = tab==="draft" ? "#FF6600" : "#1A1A1A";
-    dBtn.style.color = tab==="draft" ? "#fff" : "#666";
+    dBtn.style.background = tab==="draft" ? "#FF6600" : "#EFEFEF";
+    dBtn.style.color = tab==="draft" ? "#fff" : "#888";
   }
   if(oBtn){
-    oBtn.style.background = tab==="opinion" ? "#FF6600" : "#1A1A1A";
-    oBtn.style.color = tab==="opinion" ? "#fff" : "#666";
+    oBtn.style.background = tab==="opinion" ? "#FF6600" : "#EFEFEF";
+    oBtn.style.color = tab==="opinion" ? "#fff" : "#888";
   }
 }
 function sGet(btn) {
@@ -940,10 +944,10 @@ function renderSimilar() {
           : "") +
           "<button id='stab-o-" + c.id + "' onclick='simTab(this)' data-id='" + c.id + "' data-tab='opinion'" +
             " style='padding:7px 18px;font-size:12px;font-weight:700;border:none;cursor:pointer;" +
-            (hasDraft ? "background:#1A1A1A;color:#555" : "background:#FF6600;color:#fff") +
+            (hasDraft ? "background:#EFEFEF;color:#888" : "background:#FF6600;color:#fff") +
             ";transition:all .15s'>검토의견</button>" +
         "</div>" +
-        "<div id='sim-content-" + c.id + "' style='font-size:13px;color:#eee;white-space:pre-wrap;line-height:1.7;flex:1;" +
+        "<div id='sim-content-" + c.id + "' style='font-size:13px;color:var(--t1);white-space:pre-wrap;line-height:1.7;flex:1;" +
           "background:var(--s3);border:1px solid var(--b2);border-radius:7px;padding:12px 14px;max-height:240px;overflow:auto'>" +
           esc(hasDraft ? c.draftRaw : (c.opinion||"")) +
         "</div>" +
@@ -971,7 +975,7 @@ function simTab(btn) {
       b.style.background = "#FF6600";
       b.style.color = "#fff";
     } else if (bTab) {
-      b.style.background = "#1A1A1A";
+      b.style.background = "#EFEFEF";
       b.style.color = "#555";
     }
   }
@@ -980,8 +984,8 @@ function simTab(btn) {
     // ID로 못 찾으면 버튼 색상만 직접 변경
     var dBtn = document.getElementById("stab-d-" + id);
     var oBtn = document.getElementById("stab-o-" + id);
-    if (dBtn) { dBtn.style.background = tab === "draft" ? "#FF6600" : "#1A1A1A"; dBtn.style.color = tab === "draft" ? "#fff" : "#555"; }
-    if (oBtn) { oBtn.style.background = tab === "opinion" ? "#FF6600" : "#1A1A1A"; oBtn.style.color = tab === "opinion" ? "#fff" : "#555"; }
+    if (dBtn) { dBtn.style.background = tab === "draft" ? "#FF6600" : "#EFEFEF"; dBtn.style.color = tab === "draft" ? "#fff" : "#888"; }
+    if (oBtn) { oBtn.style.background = tab === "opinion" ? "#FF6600" : "#EFEFEF"; oBtn.style.color = tab === "opinion" ? "#fff" : "#888"; }
     var el = document.getElementById("sim-content-" + id);
     if (el && tab === "draft") el.textContent = btn.closest("[data-draft]") ? btn.closest("[data-draft]").getAttribute("data-draft") : el.textContent;
     return;
@@ -994,8 +998,8 @@ function simTab(btn) {
   // 버튼 색상 즉시 변경
   var dBtnE = document.getElementById("stab-d-" + id);
   var oBtnE = document.getElementById("stab-o-" + id);
-  if (dBtnE) { dBtnE.style.background = tab === "draft" ? "#FF6600" : "#1A1A1A"; dBtnE.style.color = tab === "draft" ? "#fff" : "#555"; }
-  if (oBtnE) { oBtnE.style.background = tab === "opinion" ? "#FF6600" : "#1A1A1A"; oBtnE.style.color = tab === "opinion" ? "#fff" : "#555"; }
+  if (dBtnE) { dBtnE.style.background = tab === "draft" ? "#FF6600" : "#EFEFEF"; dBtnE.style.color = tab === "draft" ? "#fff" : "#888"; }
+  if (oBtnE) { oBtnE.style.background = tab === "opinion" ? "#FF6600" : "#EFEFEF"; oBtnE.style.color = tab === "opinion" ? "#fff" : "#888"; }
   var label = "작성란에 가져오기";
 
   // 내용 교체
@@ -1010,12 +1014,12 @@ function simTab(btn) {
   var dBtn = document.getElementById("stab-d-" + id);
   var oBtn = document.getElementById("stab-o-" + id);
   if (dBtn) {
-    dBtn.style.background = tab === "draft" ? "#FF6600" : "#1A1A1A";
-    dBtn.style.color = tab === "draft" ? "#fff" : "#555";
+    dBtn.style.background = tab === "draft" ? "#FF6600" : "#EFEFEF";
+    dBtn.style.color = tab === "draft" ? "#fff" : "#888";
   }
   if (oBtn) {
-    oBtn.style.background = tab === "opinion" ? "#FF6600" : "#1A1A1A";
-    oBtn.style.color = tab === "opinion" ? "#fff" : "#555";
+    oBtn.style.background = tab === "opinion" ? "#FF6600" : "#EFEFEF";
+    oBtn.style.color = tab === "opinion" ? "#fff" : "#888";
   }
 }
 
