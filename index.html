@@ -324,8 +324,7 @@ button:hover{opacity:.75}
   <!-- 관리 탭 -->
   <div id="pane-manage" class="hidden">
     <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">
-      <select id="s-biz" style="width:140px" onchange="renderManage()"><option>전체</option></select>
-      <select id="s-cnt" style="width:120px" onchange="renderManage()"><option>전체</option></select>
+      <input id="s-key" placeholder="키워드 검색..." style="flex:1;min-width:160px" oninput="renderManage()">
       <select id="s-year" style="width:90px" onchange="renderManage()"><option value="">연도</option></select>
       <select id="s-month" style="width:80px" onchange="renderManage()">
         <option value="">월</option>
@@ -334,8 +333,22 @@ button:hover{opacity:.75}
         <option value="07">7월</option><option value="08">8월</option><option value="09">9월</option>
         <option value="10">10월</option><option value="11">11월</option><option value="12">12월</option>
       </select>
-      <input id="s-key" placeholder="키워드 검색..." style="flex:1;min-width:140px" oninput="renderManage()">
       <div id="s-count" style="padding:0 12px;background:var(--s1);border:1px solid var(--b1);border-radius:6px;display:flex;align-items:center;font-size:12px;color:var(--t3);white-space:nowrap;height:38px">0건</div>
+    </div>
+    <input type="hidden" id="s-biz" value="전체">
+    <input type="hidden" id="s-cnt" value="전체">
+    <input type="hidden" id="s-result" value="전체">
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:64px;padding-top:7px">국가·법인</span>
+      <span id="chip-cnt" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:64px;padding-top:7px">사업유형</span>
+      <span id="chip-biz" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:64px;padding-top:7px">결론</span>
+      <span id="chip-result" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
     </div>
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <input type="file" id="xlsx-input" accept=".xlsx,.xls" style="display:none" onchange="importXlsx(this)">
@@ -721,9 +734,36 @@ function updateCount() {
   document.getElementById("case-count").textContent = cases.length + "건";
 }
 
+// ── 칩 필터 ───────────────────────────────────────────────────────
+function chipHTML(group, val, label, active) {
+  var on  = "background:#FF6600;color:#fff;border:1px solid #FF6600";
+  var off = "background:var(--s1);color:var(--t2);border:1px solid var(--b2)";
+  return "<button onclick=\"setChip('" + group + "','" + String(val).replace(/'/g,"\\'") + "')\" " +
+    "style=\"padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;" +
+    (active?on:off) + "\">" + esc(label) + "</button>";
+}
+function renderChips() {
+  function val(id){ var e=document.getElementById(id); return (e&&e.value)||"전체"; }
+  function build(boxId, group, arr, cur) {
+    var box = document.getElementById(boxId); if (!box) return;
+    var html = chipHTML(group, "전체", "전체", cur==="전체");
+    arr.forEach(function(v){ html += chipHTML(group, v, v, cur===v); });
+    box.innerHTML = html;
+  }
+  build("chip-cnt", "cnt", COUNTRIES, val("s-cnt"));
+  build("chip-biz", "biz", BIZ_TYPES, val("s-biz"));
+  build("chip-result", "result", RESULTS, val("s-result"));
+}
+function setChip(group, val) {
+  var id = group==="cnt" ? "s-cnt" : group==="biz" ? "s-biz" : "s-result";
+  var el = document.getElementById(id); if (el) el.value = val;
+  renderChips();
+  renderManage();
+}
+
 // ── 셀렉트 초기화 ─────────────────────────────────────────────────
 function initSelects() {
-  ["s-biz","d-biz"].forEach(function(id) {
+  ["d-biz"].forEach(function(id) {
     var sel = document.getElementById(id);
     sel.innerHTML = "<option>전체</option>";
     BIZ_TYPES.forEach(function(t) {
@@ -732,7 +772,7 @@ function initSelects() {
       sel.appendChild(opt);
     });
   });
-  ["s-cnt","d-cnt"].forEach(function(id) {
+  ["d-cnt"].forEach(function(id) {
     var sel = document.getElementById(id);
     sel.innerHTML = "<option>전체</option>";
     COUNTRIES.forEach(function(c) {
@@ -741,6 +781,7 @@ function initSelects() {
       sel.appendChild(opt);
     });
   });
+  if (typeof renderChips === "function") renderChips();
   var rsel = document.getElementById("d-result");
   rsel.innerHTML = "";
   RESULTS.forEach(function(r) {
@@ -1250,17 +1291,19 @@ function renderManage() {
   // 검색 필터 적용
   var biz = (document.getElementById("s-biz")||{value:"전체"}).value;
   var cnt = (document.getElementById("s-cnt")||{value:"전체"}).value;
+  var res = (document.getElementById("s-result")||{value:"전체"}).value;
   var key = (document.getElementById("s-key")||{value:""}).value;
   var yr  = (document.getElementById("s-year")||{value:""}).value;
   var mo  = (document.getElementById("s-month")||{value:""}).value;
   var list = cases.filter(function(c) {
     var b  = biz === "전체" || c.bizType === biz;
     var ct = cnt === "전체" || c.country === cnt;
+    var rr = res === "전체" || c.result === res;
     var k  = !key || [c.name,c.opinion,c.draftRaw,c.issues].join(" ").includes(key);
     var d  = c.date || "";
     var y  = !yr || d.startsWith(yr);
     var m  = !mo || d.split(".")[1] === mo;
-    return b && ct && k && y && m;
+    return b && ct && rr && k && y && m;
   });
   var sc = document.getElementById("s-count"); if (sc) sc.textContent = list.length + "/" + cases.length + "건";
   if (cases.length === 0) {
