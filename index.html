@@ -206,11 +206,21 @@ button:hover{opacity:.75}
             <span style="font-size:13px;font-weight:700;color:var(--t1)">기본 정보</span>
             <span style="font-size:12px;color:var(--t2)">유사사례 검색의 기준이자, 저장 시 사업명으로 함께 사용됩니다</span>
           </div>
-          <div class="grid4">
-            <div><div class="label">사업명 <span style="font-weight:400;color:var(--t3);font-size:10px">검색·저장 공용</span></div><input id="d-name" placeholder="예: Martha Fields PV+BESS"></div>
-            <div><div class="label">사업유형</div><select id="d-biz" onchange="renderSimilar();clearMissing()"></select></div>
-            <div><div class="label">국가/법인</div><select id="d-cnt" onchange="renderSimilar();clearMissing()"></select></div>
-            <div><div class="label">결론</div><select id="d-result"></select></div>
+          <div style="margin-bottom:12px"><div class="label">사업명 <span style="font-weight:400;color:var(--t3);font-size:10px">검색·저장 공용</span></div><input id="d-name" placeholder="예: Martha Fields PV+BESS"></div>
+          <input type="hidden" id="d-biz" value="전체">
+          <input type="hidden" id="d-cnt" value="전체">
+          <input type="hidden" id="d-result" value="승인">
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:60px;padding-top:7px">사업유형</span>
+            <span id="chip-d-biz" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:60px;padding-top:7px">국가/법인</span>
+            <span id="chip-d-cnt" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:700;color:var(--t2);min-width:60px;padding-top:7px">결론</span>
+            <span id="chip-d-result" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></span>
           </div>
         </div>
         <!-- AI 초안 -->
@@ -761,34 +771,40 @@ function setChip(group, val) {
   renderManage();
 }
 
+// ── 작성탭 칩 (단일 선택) ─────────────────────────────────────────
+function dchipHTML(group, val, label, active) {
+  var on  = "background:#FF6600;color:#fff;border:1px solid #FF6600";
+  var off = "background:var(--s1);color:var(--t2);border:1px solid var(--b2)";
+  return "<button type=\"button\" onclick=\"setDraftChip('" + group + "','" + String(val).replace(/'/g,"\\'") + "')\" " +
+    "style=\"padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;" +
+    (active?on:off) + "\">" + esc(label) + "</button>";
+}
+function renderDraftChips() {
+  function val(id){ var e=document.getElementById(id); return e?e.value:""; }
+  function build(boxId, group, arr, cur, withAll) {
+    var box = document.getElementById(boxId); if (!box) return;
+    var html = withAll ? dchipHTML(group, "전체", "전체", cur==="전체") : "";
+    arr.forEach(function(v){ html += dchipHTML(group, v, v, cur===v); });
+    box.innerHTML = html;
+  }
+  build("chip-d-biz", "dbiz", BIZ_TYPES, val("d-biz"), true);
+  build("chip-d-cnt", "dcnt", COUNTRIES, val("d-cnt"), true);
+  build("chip-d-result", "dresult", RESULTS, val("d-result"), false);
+}
+function setDraftChip(group, val) {
+  var id = group==="dbiz" ? "d-biz" : group==="dcnt" ? "d-cnt" : "d-result";
+  var el = document.getElementById(id); if (el) el.value = val;
+  renderDraftChips();
+  if (group !== "dresult") {
+    if (typeof renderSimilar === "function") renderSimilar();
+    if (typeof clearMissing === "function") clearMissing();
+  }
+}
+
 // ── 셀렉트 초기화 ─────────────────────────────────────────────────
 function initSelects() {
-  ["d-biz"].forEach(function(id) {
-    var sel = document.getElementById(id);
-    sel.innerHTML = "<option>전체</option>";
-    BIZ_TYPES.forEach(function(t) {
-      var opt = document.createElement("option");
-      opt.textContent = t;
-      sel.appendChild(opt);
-    });
-  });
-  ["d-cnt"].forEach(function(id) {
-    var sel = document.getElementById(id);
-    sel.innerHTML = "<option>전체</option>";
-    COUNTRIES.forEach(function(c) {
-      var opt = document.createElement("option");
-      opt.textContent = c;
-      sel.appendChild(opt);
-    });
-  });
   if (typeof renderChips === "function") renderChips();
-  var rsel = document.getElementById("d-result");
-  rsel.innerHTML = "";
-  RESULTS.forEach(function(r) {
-    var opt = document.createElement("option");
-    opt.textContent = r;
-    rsel.appendChild(opt);
-  });
+  if (typeof renderDraftChips === "function") renderDraftChips();
   var ySel = document.getElementById("s-year");
   if (ySel) {
     var yrs = {};
@@ -1660,6 +1676,7 @@ function loadFromQueue(id) {
   document.getElementById("d-biz").value = c.bizType||"";
   document.getElementById("d-cnt").value = c.country||"";
   document.getElementById("d-result").value = (c.result||"").replace(REVIEW_TAG, "") || "승인";
+  if (typeof renderDraftChips === "function") renderDraftChips();
   var draft = c.opinion || c.draftRaw || "";
   var refEl = document.getElementById("d-staff-ref");
   if (refEl) refEl.value = draft;                       // 왼쪽: 실무자 원본 (읽기)
