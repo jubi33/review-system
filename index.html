@@ -1432,14 +1432,14 @@ function renderManage() {
   var biz = (document.getElementById("s-biz")||{value:"전체"}).value;
   var cnt = (document.getElementById("s-cnt")||{value:"전체"}).value;
   var res = (document.getElementById("s-result")||{value:"전체"}).value;
-  var key = (document.getElementById("s-key")||{value:""}).value;
+  var key = (document.getElementById("s-key")||{value:""}).value.trim().toLowerCase();
   var yr  = (document.getElementById("s-year")||{value:""}).value;
   var mo  = (document.getElementById("s-month")||{value:""}).value;
   var list = cases.filter(function(c) {
     var b  = biz === "전체" || c.bizType === biz;
     var ct = cnt === "전체" || c.country === cnt;
     var rr = res === "전체" || c.result === res;
-    var k  = !key || [c.name,c.opinion,c.draftRaw,c.issues].join(" ").includes(key);
+    var k  = !key || [c.name,c.opinion,c.draftRaw,c.issues].join(" ").toLowerCase().includes(key);
     var d  = c.date || "";
     var y  = !yr || d.startsWith(yr);
     var m  = !mo || d.split(".")[1] === mo;
