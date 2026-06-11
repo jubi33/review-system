@@ -96,7 +96,10 @@ button:hover{opacity:.75}
       <span style="color:#FF6600">●</span> 검토의견 시스템
     </div>
     <div style="font-size:13px;color:#666;margin-bottom:28px">Hanwha Energy</div>
-    <input type="password" id="login-input" placeholder="비밀번호"
+    <input type="email" id="login-email" placeholder="이메일" autocomplete="username"
+      style="width:100%;padding:13px 16px;border-radius:8px;border:1px solid #D2D6DC;background:#fff;color:#1B1D21;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;font-family:inherit;text-align:center"
+      onkeydown="if(event.key==='Enter')document.getElementById('login-input').focus()">
+    <input type="password" id="login-input" placeholder="비밀번호" autocomplete="current-password"
       style="width:100%;padding:13px 16px;border-radius:8px;border:1px solid #D2D6DC;background:#fff;color:#1B1D21;font-size:16px;outline:none;box-sizing:border-box;margin-bottom:12px;font-family:inherit;text-align:center"
       onkeydown="if(event.key==='Enter')doLogin()">
     <div id="login-err" style="color:#FF4747;font-size:13px;margin-bottom:10px;display:none">비밀번호가 틀렸습니다</div>
@@ -169,6 +172,7 @@ button:hover{opacity:.75}
     <div style="display:flex;align-items:center;gap:10px">
       <span id="case-count" style="font-size:14px;color:var(--t3)">0건</span>
       <button class="btn-out" style="border:1px solid var(--b2);color:var(--t3);padding:7px 14px;font-size:14px" onclick="openModal()">설정</button>
+      <button class="btn-out" style="border:1px solid var(--b2);color:var(--t3);padding:7px 14px;font-size:14px" onclick="logout()">로그아웃</button>
     </div>
   </div>
 </div>
@@ -398,17 +402,80 @@ button:hover{opacity:.75}
 
 <script>
 
-var LOGIN_PW = "Hanwha1234";
-function doLogin() {
-  if (document.getElementById("login-input").value === LOGIN_PW) {
+// ── Supabase Auth (진짜 인증) ──────────────────────────────────────
+function applyToken(tok) {
+  AUTH_TOKEN = tok;
+  if (typeof SB_HEADERS !== "undefined") SB_HEADERS.Authorization = "Bearer " + tok;
+  if (typeof SB_HEADERS_BULK !== "undefined") SB_HEADERS_BULK.Authorization = "Bearer " + tok;
+}
+function saveSession(s) { try { localStorage.setItem("rv_session", JSON.stringify(s)); } catch(e) {} }
+function loadSession() { try { return JSON.parse(localStorage.getItem("rv_session") || "null"); } catch(e) { return null; } }
+
+async function doLogin() {
+  var email = (document.getElementById("login-email").value || "").trim();
+  var pw = document.getElementById("login-input").value || "";
+  var errEl = document.getElementById("login-err");
+  errEl.style.display = "none";
+  if (!email || !pw) { errEl.textContent = "이메일과 비밀번호를 입력하세요"; errEl.style.display = "block"; return; }
+  try {
+    var res = await fetch(SB_URL + "/auth/v1/token?grant_type=password", {
+      method: "POST",
+      headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, password: pw })
+    });
+    var data = await res.json();
+    if (!res.ok || !data.access_token) {
+      errEl.textContent = "로그인 실패 — 이메일 또는 비밀번호를 확인하세요";
+      errEl.style.display = "block";
+      document.getElementById("login-input").value = "";
+      return;
+    }
+    applyToken(data.access_token);
+    saveSession({ access_token: data.access_token, refresh_token: data.refresh_token, expires_at: Date.now() + (data.expires_in || 3600) * 1000, email: email });
     document.getElementById("login-overlay").style.display = "none";
-    renderSearch();
-    renderSimilar();
-  } else {
-    document.getElementById("login-err").style.display = "block";
-    document.getElementById("login-input").value = "";
-    document.getElementById("login-input").focus();
+    await afterAuth();
+  } catch (e) {
+    errEl.textContent = "연결 오류: " + e.message;
+    errEl.style.display = "block";
   }
+}
+
+async function refreshSession(s) {
+  try {
+    var res = await fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: s.refresh_token })
+    });
+    var data = await res.json();
+    if (res.ok && data.access_token) {
+      applyToken(data.access_token);
+      saveSession({ access_token: data.access_token, refresh_token: data.refresh_token, expires_at: Date.now() + (data.expires_in || 3600) * 1000, email: s.email });
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+async function tryRestoreSession() {
+  var s = loadSession();
+  if (!s || !s.access_token) return false;
+  if (s.expires_at && Date.now() > s.expires_at - 60000) {
+    return (s.refresh_token && await refreshSession(s)) ? true : false;
+  }
+  applyToken(s.access_token);
+  return true;
+}
+
+function logout() {
+  try { localStorage.removeItem("rv_session"); } catch(e) {}
+  location.reload();
+}
+
+async function afterAuth() {
+  await loadData();
+  switchTab("draft");
+  renderSimilar();
 }
 
 // ── 데이터 ────────────────────────────────────────────────────────
@@ -539,15 +606,17 @@ var LS = {
 // ── Supabase 설정 ─────────────────────────────────────────────────
 var SB_URL = "https://asjjujsylfgyxepjkdoc.supabase.co";
 var SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFzamp1anN5bGZneXhlcGprZG9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDYxMjEsImV4cCI6MjA5NDI4MjEyMX0.bX1XKognhvO7Sec0g0IdSl84miRXXANkpIM3RAdPh2Y";
+// 로그인 전엔 anon, 로그인 성공 시 사용자 access_token으로 교체됨 (RLS authenticated 통과용)
+var AUTH_TOKEN = SB_KEY;
 var SB_HEADERS = {
   "apikey": SB_KEY,
-  "Authorization": "Bearer " + SB_KEY,
+  "Authorization": "Bearer " + AUTH_TOKEN,
   "Content-Type": "application/json",
   "Prefer": "return=representation"
 };
 var SB_HEADERS_BULK = {
   "apikey": SB_KEY,
-  "Authorization": "Bearer " + SB_KEY,
+  "Authorization": "Bearer " + AUTH_TOKEN,
   "Content-Type": "application/json"
 };
 function toRow(c) {
@@ -568,7 +637,7 @@ async function loadData() {
   settings = LS.getSettings();
   try {
     var res = await fetch(SB_URL+"/rest/v1/cases?select=*&order=id.desc&limit=500",{
-      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}
+      headers:{"apikey":SB_KEY,"Authorization":"Bearer "+AUTH_TOKEN}
     });
     var rows = await res.json();
     var all = Array.isArray(rows) ? rows.map(fromRow) : [];
@@ -1445,7 +1514,7 @@ function startEdit(id) { editingId = id; renderManage(); }
 function cancelEdit(){editingId=null;renderManage();}
 async function resetAll(){
   if(!confirm("전체 초기화?")) return;
-  await fetch(SB_URL+"/rest/v1/cases?id=gte.0",{method:"DELETE",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY}});
+  await fetch(SB_URL+"/rest/v1/cases?id=gte.0",{method:"DELETE",headers:{"apikey":SB_KEY,"Authorization":"Bearer "+AUTH_TOKEN}});
   await loadData();renderManage();flash("초기화됨");
 }
 async function uploadInitData() {
@@ -1453,7 +1522,7 @@ async function uploadInitData() {
   // 먼저 연결 테스트
   try {
     var test = await fetch(SB_URL + "/rest/v1/cases?limit=1", {
-      headers: {"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY}
+      headers: {"apikey": SB_KEY, "Authorization": "Bearer " + AUTH_TOKEN}
     });
     if (!test.ok) {
       var errMsg = await test.text();
@@ -1477,7 +1546,7 @@ async function uploadInitData() {
       });
       var res = await fetch(SB_URL + "/rest/v1/cases", {
         method: "POST",
-        headers: {"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},
+        headers: {"apikey":SB_KEY,"Authorization":"Bearer "+AUTH_TOKEN,"Content-Type":"application/json"},
         body: body
       });
       if (res.ok) { ok++; }
@@ -1528,7 +1597,7 @@ async function deleteCase(id) {
   try {
     var res = await fetch(SB_URL + "/rest/v1/cases?id=eq." + id, {
       method: "DELETE",
-      headers: {"apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY}
+      headers: {"apikey": SB_KEY, "Authorization": "Bearer " + AUTH_TOKEN}
     });
     if (!res.ok) throw new Error("응답 " + res.status);
     await loadData();
@@ -1566,7 +1635,7 @@ function importXlsx(input) {
       try {
         var testRes = await fetch(SB_URL + "/rest/v1/cases", {
           method: "POST",
-          headers: {"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},
+          headers: {"apikey":SB_KEY,"Authorization":"Bearer "+AUTH_TOKEN,"Content-Type":"application/json"},
           body: JSON.stringify(toRow(added[0]))
         });
         if (!testRes.ok) {
@@ -1584,7 +1653,7 @@ function importXlsx(input) {
         try {
           var res = await fetch(SB_URL + "/rest/v1/cases", {
             method: "POST",
-            headers: {"apikey":SB_KEY,"Authorization":"Bearer "+SB_KEY,"Content-Type":"application/json"},
+            headers: {"apikey":SB_KEY,"Authorization":"Bearer "+AUTH_TOKEN,"Content-Type":"application/json"},
             body: JSON.stringify(toRow(added[j]))
           });
           if (res.ok) ok++;
@@ -1617,10 +1686,12 @@ document.addEventListener("DOMContentLoaded", async function() {
   initSelects();
   updateCount();
   renderSimilar();
-  // Supabase에서 데이터 로드
-  await loadData();
-  switchTab("draft");
-  renderSimilar();
+  // 세션 복원 시도 — 성공하면 데이터 로드, 실패하면 로그인 오버레이 유지
+  var restored = await tryRestoreSession();
+  if (restored) {
+    document.getElementById("login-overlay").style.display = "none";
+    await afterAuth();
+  }
 });
 </script>
 <script>
