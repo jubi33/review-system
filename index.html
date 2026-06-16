@@ -710,6 +710,7 @@ function extractJSON(s) {
   try {
     return JSON.parse(t);
   } catch (e) {
+    try { console.error("[extractJSON] 파싱 실패. AI 원본 응답:\n", s); } catch(_) {}
     throw new Error("AI 응답을 해석하지 못했습니다 (형식 오류). 다시 시도해 주세요.");
   }
 }
@@ -1229,7 +1230,7 @@ async function analyzeStyle() {
       "현재 실무자 초안에서 누락·수정·정정이 필요한 항목을 아래 형식으로 알려주세요.\n\n" +
       "형식 (JSON만 반환, 다른 텍스트 없이):\n" +
       '{"missing_style": [{"category": "카테고리", "issue": "문제점 1줄", "suggestion": "보완 방향 1~2줄"}]}';
-    var raw = await callLLM(prompt, 800);
+    var raw = await callLLM(prompt, 2000);
     var parsed = extractJSON(raw);
     var items = parsed.missing_style || [];
 
@@ -1349,7 +1350,7 @@ async function checkMissing() {
       "[검토의견]\n" + opinion + "\n\n" +
       "[체크리스트 (" + biz + ")]\n" + list + "\n\n" +
       '{"missing":[{"id":"항목ID","title":"항목명","reason":"이유 1줄"}]}';
-    var raw = await callLLM(prompt, 800);
+    var raw = await callLLM(prompt, 2000);
     var parsed = extractJSON(raw);
     missingItems = parsed.missing || [];
     renderMissing();
