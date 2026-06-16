@@ -701,6 +701,19 @@ function llmReady() {
   if (!settings.anthropicKey) { flash("Anthropic API 키를 설정해주세요", "warn"); openModal(); return false; }
   return true;
 }
+// LLM 응답에서 JSON만 견고하게 추출 (앞뒤 설명·코드펜스가 섞여도 파싱)
+function extractJSON(s) {
+  if (!s || !s.trim()) throw new Error("AI 응답이 비어 있습니다");
+  var t = s.replace(/```json/gi, "").replace(/```/g, "").trim();
+  var a = t.indexOf("{"), b = t.lastIndexOf("}");
+  if (a !== -1 && b !== -1 && b > a) t = t.slice(a, b + 1);
+  try {
+    return JSON.parse(t);
+  } catch (e) {
+    throw new Error("AI 응답을 해석하지 못했습니다 (형식 오류). 다시 시도해 주세요.");
+  }
+}
+
 async function callLLM(prompt, maxTokens) {
   if (settings.llmMode === "ollama") {
     return await callOllama(prompt, maxTokens);
@@ -1217,7 +1230,7 @@ async function analyzeStyle() {
       "형식 (JSON만 반환, 다른 텍스트 없이):\n" +
       '{"missing_style": [{"category": "카테고리", "issue": "문제점 1줄", "suggestion": "보완 방향 1~2줄"}]}';
     var raw = await callLLM(prompt, 800);
-    var parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+    var parsed = extractJSON(raw);
     var items = parsed.missing_style || [];
 
     if (items.length === 0) {
@@ -1337,7 +1350,7 @@ async function checkMissing() {
       "[체크리스트 (" + biz + ")]\n" + list + "\n\n" +
       '{"missing":[{"id":"항목ID","title":"항목명","reason":"이유 1줄"}]}';
     var raw = await callLLM(prompt, 800);
-    var parsed = JSON.parse(raw.replace(/```json|```/g,"").trim());
+    var parsed = extractJSON(raw);
     missingItems = parsed.missing || [];
     renderMissing();
     flash(missingItems.length === 0 ? "누락 항목 없음 ✓" : missingItems.length + "개 항목 누락 발견", missingItems.length === 0 ? "ok" : "warn");
