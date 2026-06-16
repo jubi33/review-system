@@ -1261,7 +1261,14 @@ async function analyzeStyle() {
       document.getElementById("style-result").innerHTML = html_out;
       window._styleSuggestions = items;
     }
-  } catch(e) { flash("분석 오류: " + e.message, "err"); }
+  } catch(e) {
+    flash("분석 오류: " + e.message, "err");
+    document.getElementById("style-result").innerHTML =
+      "<div style='margin-top:10px;padding:10px 14px;border:1px solid var(--b2);border-radius:7px;background:var(--s2)'>" +
+      "<div style='font-size:12px;font-weight:700;color:var(--orange);margin-bottom:6px'>디버그 — AI 원본 응답 (이 내용을 보여주세요)</div>" +
+      "<pre style='font-size:11px;color:var(--t2);white-space:pre-wrap;word-break:break-all;max-height:320px;overflow:auto;margin:0'>" +
+      esc(typeof raw !== "undefined" ? String(raw) : "(응답 없음)") + "</pre></div>";
+  }
   btn.textContent = "보완 필요 사항 확인"; btn.disabled = false;
 }
 
