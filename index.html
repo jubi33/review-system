@@ -457,6 +457,15 @@ async function refreshSession(s) {
   return false;
 }
 
+async function ensureToken() {
+  var s = loadSession();
+  if (!s || !s.access_token) return false;
+  if (s.expires_at && Date.now() > s.expires_at - 120000) {  // 만료 2분 전이면 미리 갱신
+    return (s.refresh_token && await refreshSession(s)) ? true : false;
+  }
+  return true;
+}
+
 async function tryRestoreSession() {
   var s = loadSession();
   if (!s || !s.access_token) return false;
@@ -1786,11 +1795,15 @@ async function submitForReview() {
     doUpdate = window.confirm("같은 사업명 '" + name + "' 으로 이미 검토 요청된 건이 있습니다.\n\n[확인] 기존 검토 요청을 이 내용으로 갱신\n[취소] 새 건으로 별도 제출");
   }
   try {
-    var res;
-    if (doUpdate) {
-      res = await fetch(SB_URL + "/rest/v1/cases?id=eq." + pendingDup.id, { method:"PATCH", headers:SB_HEADERS, body:JSON.stringify(toRow(nc)) });
-    } else {
-      res = await fetch(SB_URL + "/rest/v1/cases", { method:"POST", headers:SB_HEADERS, body:JSON.stringify(toRow(nc)) });
+    await ensureToken();
+    var doReq = function() {
+      if (doUpdate) return fetch(SB_URL + "/rest/v1/cases?id=eq." + pendingDup.id, { method:"PATCH", headers:SB_HEADERS, body:JSON.stringify(toRow(nc)) });
+      return fetch(SB_URL + "/rest/v1/cases", { method:"POST", headers:SB_HEADERS, body:JSON.stringify(toRow(nc)) });
+    };
+    var res = await doReq();
+    if (res.status === 401) {  // 토큰 만료 → 갱신 후 1회 재시도
+      var s = loadSession();
+      if (s && s.refresh_token && await refreshSession(s)) res = await doReq();
     }
     if (res.ok) {
       flash(doUpdate ? "기존 검토 요청 갱신 완료 ✓" : "팀장 검토 요청 완료 ✓");
@@ -1801,7 +1814,12 @@ async function submitForReview() {
       if (typeof clearMissing==="function") clearMissing();
       if (typeof clearStyle==="function") clearStyle();
       await loadData();
-    } else { flash("요청 실패", "err"); }
+    } else if (res.status === 401) {
+      flash("세션이 만료됐습니다. 로그아웃 후 다시 로그인해 주세요.", "err");
+    } else {
+      var msg = ""; try { var j = await res.json(); msg = j.message || j.hint || ""; } catch(_) {}
+      flash("요청 실패 (" + res.status + ")" + (msg ? " — " + msg : ""), "err");
+    }
   } catch(e) { flash("오류: " + e.message, "err"); }
 }
 
