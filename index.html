@@ -147,6 +147,13 @@ button:hover{opacity:.75}
     <div style="font-size:11px;color:var(--t3);margin-bottom:20px">비워두면 키워드 기반 유사사례 검색 사용</div>
     </div>
 
+    <div style="font-size:13px;font-weight:700;color:var(--t1);margin:6px 0 8px;padding-top:16px;border-top:1px solid var(--b1)">검토 요청 메일 (Outlook)</div>
+    <div class="label">팀장 이메일 (기본 수신자)</div>
+    <input type="email" id="lead-email-input" placeholder="teamlead@hanwha.com" style="margin-bottom:8px" autocomplete="off">
+    <div class="label">팀원 목록 (한 줄에 한 명 — 이름, 이메일)</div>
+    <textarea id="team-members-input" placeholder="홍길동, hong@hanwha.com&#10;김철수, kim@hanwha.com" style="height:80px;resize:vertical;margin-bottom:6px"></textarea>
+    <div style="font-size:11px;color:var(--t3);margin-bottom:20px">검토 요청 시 팀장에게 메일 작성 창이 열리고, 팀원은 참조(CC)로 선택할 수 있습니다.</div>
+
     <div style="display:flex;gap:8px">
       <button class="btn-acc" onclick="saveSettings()">저장</button>
       <button class="btn-out" style="border:1px solid var(--b2);color:var(--t3)" onclick="closeModal()">닫기</button>
@@ -306,6 +313,7 @@ button:hover{opacity:.75}
             </div>
           </div>
           <div id="staff-submit-wrap" style="display:none;margin-top:14px;border-top:1px solid var(--b1);padding-top:14px">
+            <div id="cc-picker" style="margin-bottom:10px"></div>
             <button style="width:100%;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="submitForReview()">팀장 검토 요청</button>
             <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">저장 후 팀장의 검토 대기 목록에 표시됩니다</div>
           </div>
@@ -683,6 +691,8 @@ function openModal() {
   document.getElementById("ollama-embed-input").value = settings.ollamaEmbed || "";
   document.getElementById("anthropic-key-input").value = settings.anthropicKey || "";
   document.getElementById("anthropic-model-input").value = settings.anthropicModel || "claude-sonnet-4-6";
+  document.getElementById("lead-email-input").value = settings.leadEmail || "";
+  document.getElementById("team-members-input").value = settings.teamMembers || "";
   toggleLlmMode();
   document.getElementById("modal-overlay").classList.add("show");
 }
@@ -694,8 +704,11 @@ function saveSettings() {
   settings.ollamaEmbed = document.getElementById("ollama-embed-input").value.trim();
   settings.anthropicKey = document.getElementById("anthropic-key-input").value.trim();
   settings.anthropicModel = document.getElementById("anthropic-model-input").value.trim() || "claude-sonnet-4-6";
+  settings.leadEmail = document.getElementById("lead-email-input").value.trim();
+  settings.teamMembers = document.getElementById("team-members-input").value.trim();
   var mq = document.getElementById("model-quick"); if (mq) mq.value = settings.anthropicModel;
   localStorage.setItem("rv_settings", JSON.stringify(settings));
+  if (typeof renderCcPicker === "function") renderCcPicker();
   closeModal(); flash("저장됨");
 }
 
@@ -948,6 +961,7 @@ function initSelects() {
   if (typeof renderDraftChips === "function") renderDraftChips();
   var mq = document.getElementById("model-quick");
   if (mq) mq.value = (settings && settings.anthropicModel) || "claude-sonnet-4-6";
+  if (typeof renderCcPicker === "function") renderCcPicker();
   var ySel = document.getElementById("s-year");
   if (ySel) {
     var yrs = {};
@@ -1768,6 +1782,62 @@ function setRole(role) {
   if (isLead) loadQueue();
 }
 
+// ── 검토 요청 메일 (Outlook mailto) ───────────────────────────────
+function parseTeam() {
+  var raw = (settings.teamMembers || "").trim();
+  if (!raw) return [];
+  return raw.split("\n").map(function(line) {
+    var parts = line.split(/[,;]/);
+    if (parts.length >= 2) {
+      var email = parts[parts.length - 1].trim();
+      var name = parts.slice(0, parts.length - 1).join(",").trim();
+      return email ? { name: name || email, email: email } : null;
+    }
+    var t = line.trim();
+    return t ? { name: t, email: t } : null;
+  }).filter(function(x) { return x && x.email; });
+}
+
+function renderCcPicker() {
+  var host = document.getElementById("cc-picker");
+  if (!host) return;
+  var team = parseTeam();
+  if (!settings.leadEmail && team.length === 0) {
+    host.innerHTML = "<div style='font-size:11px;color:var(--t3)'>※ 설정에서 팀장·팀원 이메일을 입력하면 검토 요청 시 메일 작성 창이 열립니다.</div>";
+    return;
+  }
+  var rows = team.map(function(m) {
+    return "<label style='display:inline-flex;align-items:center;gap:5px;font-size:12px;margin:3px 12px 3px 0;cursor:pointer'>" +
+      "<input type='checkbox' class='cc-chk' value='" + esc(m.email) + "' style='width:auto;margin:0'>" +
+      esc(m.name) + "</label>";
+  }).join("");
+  host.innerHTML =
+    "<div style='font-size:11px;color:var(--t3);margin-bottom:4px'>메일 받는사람: " +
+      (settings.leadEmail ? "<b style='color:var(--t2)'>" + esc(settings.leadEmail) + "</b> (팀장)"
+        : "<span style='color:var(--orange)'>팀장 이메일 미설정</span>") + "</div>" +
+    (rows ? "<div style='font-size:11px;color:var(--t3);margin-bottom:3px'>참조(CC) 선택:</div><div>" + rows + "</div>" : "");
+}
+
+function sendReviewEmail(nc, baseResult) {
+  var to = (settings.leadEmail || "").trim();
+  if (!to) return;  // 팀장 이메일 없으면 메일 생략 (DB 저장은 이미 완료)
+  var cc = Array.prototype.slice.call(document.querySelectorAll(".cc-chk:checked")).map(function(c) { return c.value; });
+  var subject = "[검토요청] " + nc.name;
+  var body =
+    "검토 요청 드립니다.\n\n" +
+    "■ 사업명: " + nc.name + "\n" +
+    "■ 사업유형: " + nc.bizType + "\n" +
+    "■ 국가/법인: " + nc.country + "\n" +
+    "■ 결론(안): " + (baseResult || "") + "\n" +
+    "■ 요청일: " + nc.date + "\n\n" +
+    "검토 시스템에서 확인: https://jubi33.github.io/review-system/\n";
+  var url = "mailto:" + encodeURIComponent(to) +
+    "?subject=" + encodeURIComponent(subject) +
+    (cc.length ? "&cc=" + encodeURIComponent(cc.join(",")) : "") +
+    "&body=" + encodeURIComponent(body);
+  window.location.href = url;
+}
+
 // 실무자: 팀장 검토 요청 (result에 [검토중] 태그 붙여 저장)
 async function submitForReview() {
   var name = document.getElementById("d-name").value.trim();
@@ -1814,6 +1884,7 @@ async function submitForReview() {
       if (typeof clearMissing==="function") clearMissing();
       if (typeof clearStyle==="function") clearStyle();
       await loadData();
+      sendReviewEmail(nc, baseResult);
     } else if (res.status === 401) {
       flash("세션이 만료됐습니다. 로그아웃 후 다시 로그인해 주세요.", "err");
     } else {
