@@ -147,13 +147,6 @@ button:hover{opacity:.75}
     <div style="font-size:11px;color:var(--t3);margin-bottom:20px">비워두면 키워드 기반 유사사례 검색 사용</div>
     </div>
 
-    <div style="font-size:13px;font-weight:700;color:var(--t1);margin:6px 0 8px;padding-top:16px;border-top:1px solid var(--b1)">검토 요청 메일 (Outlook)</div>
-    <div class="label">팀장 이메일 (기본 수신자)</div>
-    <input type="email" id="lead-email-input" placeholder="teamlead@hanwha.com" style="margin-bottom:8px" autocomplete="off">
-    <div class="label">팀원 목록 (한 줄에 한 명 — 이름, 이메일)</div>
-    <textarea id="team-members-input" placeholder="홍길동, hong@hanwha.com&#10;김철수, kim@hanwha.com" style="height:80px;resize:vertical;margin-bottom:6px"></textarea>
-    <div style="font-size:11px;color:var(--t3);margin-bottom:20px">검토 요청 시 팀장에게 메일 작성 창이 열리고, 팀원은 참조(CC)로 선택할 수 있습니다.</div>
-
     <div style="display:flex;gap:8px">
       <button class="btn-acc" onclick="saveSettings()">저장</button>
       <button class="btn-out" style="border:1px solid var(--b2);color:var(--t3)" onclick="closeModal()">닫기</button>
@@ -313,7 +306,19 @@ button:hover{opacity:.75}
             </div>
           </div>
           <div id="staff-submit-wrap" style="display:none;margin-top:14px;border-top:1px solid var(--b1);padding-top:14px">
-            <div id="cc-picker" style="margin-bottom:10px"></div>
+            <div id="mail-box" style="margin-bottom:12px;border:1px solid var(--b1);border-radius:8px;background:var(--s2);padding:10px 12px">
+              <div onclick="toggleMailBox()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none">
+                <span style="font-size:12px;font-weight:700;color:var(--t1)">✉ 검토 요청 메일 (Outlook)</span>
+                <span id="mail-box-arrow" style="font-size:11px;color:var(--t3)">▾ 펼치기</span>
+              </div>
+              <div id="mail-box-body" style="display:none;margin-top:10px">
+                <div class="label">팀장 이메일 (기본 수신자)</div>
+                <input type="email" id="lead-email-inline" placeholder="teamlead@hanwha.com" style="margin-bottom:8px" autocomplete="off" onchange="saveMailInline()">
+                <div class="label">팀원 목록 (한 줄에 한 명 — 이름, 이메일)</div>
+                <textarea id="team-members-inline" placeholder="홍길동, hong@hanwha.com&#10;김철수, kim@hanwha.com" style="height:72px;resize:vertical;margin-bottom:6px" onchange="saveMailInline()"></textarea>
+              </div>
+              <div id="cc-picker" style="margin-top:8px"></div>
+            </div>
             <button style="width:100%;padding:11px;background:#FF6600;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer" onclick="submitForReview()">팀장 검토 요청</button>
             <div style="font-size:11px;color:var(--t3);margin-top:6px;text-align:center">저장 후 팀장의 검토 대기 목록에 표시됩니다</div>
           </div>
@@ -691,8 +696,6 @@ function openModal() {
   document.getElementById("ollama-embed-input").value = settings.ollamaEmbed || "";
   document.getElementById("anthropic-key-input").value = settings.anthropicKey || "";
   document.getElementById("anthropic-model-input").value = settings.anthropicModel || "claude-sonnet-4-6";
-  document.getElementById("lead-email-input").value = settings.leadEmail || "";
-  document.getElementById("team-members-input").value = settings.teamMembers || "";
   toggleLlmMode();
   document.getElementById("modal-overlay").classList.add("show");
 }
@@ -704,8 +707,6 @@ function saveSettings() {
   settings.ollamaEmbed = document.getElementById("ollama-embed-input").value.trim();
   settings.anthropicKey = document.getElementById("anthropic-key-input").value.trim();
   settings.anthropicModel = document.getElementById("anthropic-model-input").value.trim() || "claude-sonnet-4-6";
-  settings.leadEmail = document.getElementById("lead-email-input").value.trim();
-  settings.teamMembers = document.getElementById("team-members-input").value.trim();
   var mq = document.getElementById("model-quick"); if (mq) mq.value = settings.anthropicModel;
   localStorage.setItem("rv_settings", JSON.stringify(settings));
   if (typeof renderCcPicker === "function") renderCcPicker();
@@ -1799,11 +1800,15 @@ function parseTeam() {
 }
 
 function renderCcPicker() {
+  var le = document.getElementById("lead-email-inline");
+  var tm = document.getElementById("team-members-inline");
+  if (le && document.activeElement !== le) le.value = settings.leadEmail || "";
+  if (tm && document.activeElement !== tm) tm.value = settings.teamMembers || "";
   var host = document.getElementById("cc-picker");
   if (!host) return;
   var team = parseTeam();
   if (!settings.leadEmail && team.length === 0) {
-    host.innerHTML = "<div style='font-size:11px;color:var(--t3)'>※ 설정에서 팀장·팀원 이메일을 입력하면 검토 요청 시 메일 작성 창이 열립니다.</div>";
+    host.innerHTML = "<div style='font-size:11px;color:var(--t3)'>※ ‘펼치기’를 눌러 팀장·팀원 이메일을 입력하면 검토 요청 시 Outlook 메일 창이 열립니다.</div>";
     return;
   }
   var rows = team.map(function(m) {
@@ -1812,10 +1817,29 @@ function renderCcPicker() {
       esc(m.name) + "</label>";
   }).join("");
   host.innerHTML =
-    "<div style='font-size:11px;color:var(--t3);margin-bottom:4px'>메일 받는사람: " +
+    "<div style='font-size:11px;color:var(--t3);margin-bottom:4px'>받는사람: " +
       (settings.leadEmail ? "<b style='color:var(--t2)'>" + esc(settings.leadEmail) + "</b> (팀장)"
         : "<span style='color:var(--orange)'>팀장 이메일 미설정</span>") + "</div>" +
     (rows ? "<div style='font-size:11px;color:var(--t3);margin-bottom:3px'>참조(CC) 선택:</div><div>" + rows + "</div>" : "");
+}
+
+function toggleMailBox() {
+  var b = document.getElementById("mail-box-body");
+  var a = document.getElementById("mail-box-arrow");
+  if (!b) return;
+  var open = b.style.display === "none";
+  b.style.display = open ? "block" : "none";
+  if (a) a.textContent = open ? "▴ 접기" : "▾ 펼치기";
+}
+
+function saveMailInline() {
+  var le = document.getElementById("lead-email-inline");
+  var tm = document.getElementById("team-members-inline");
+  if (le) settings.leadEmail = le.value.trim();
+  if (tm) settings.teamMembers = tm.value.trim();
+  try { localStorage.setItem("rv_settings", JSON.stringify(settings)); } catch(e) {}
+  renderCcPicker();
+  flash("메일 설정 저장됨");
 }
 
 function sendReviewEmail(nc, baseResult) {
